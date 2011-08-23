@@ -26,5 +26,14 @@
             <outputDirectory></outputDirectory>
         </fileSet>
     </fileSets>
+
+    <dependencySets>
+        <dependencySet>
+            <includes>
+                <include>com.google.gdata:gdata-appsforyourdomain-1.0</include>
+            </includes>
+            <outputDirectory>lib</outputDirectory>
+        </dependencySet>
+    </dependencySets>
     
 </assembly>
