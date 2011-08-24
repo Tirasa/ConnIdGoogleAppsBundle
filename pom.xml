@@ -58,14 +58,14 @@
             <groupId>org.connid</groupId>
             <artifactId>framework</artifactId>
             <version>${base.version}</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.connid</groupId>
             <artifactId>framework-internal</artifactId>
             <version>${base.version}</version>
-            <scope>runtime</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
