@@ -573,7 +573,7 @@ public class GoogleAppsClient {
      * @return String repreneation of the user entry
      */
     public static String userEntrytoString(UserEntry ue) {
-        StringBuffer sb = new StringBuffer("UserEntry:");
+        StringBuilder sb = new StringBuilder("UserEntry:");
 
         if (ue != null) {
             Login login = ue.getLogin();

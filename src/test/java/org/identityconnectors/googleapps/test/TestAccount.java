@@ -89,14 +89,14 @@ public class TestAccount {
     }
 
     private String getPlainPassword(GuardedString password) {
-        final StringBuffer buf = new StringBuffer();
+        final StringBuilder builder = new StringBuilder();
         password.access(new GuardedString.Accessor() {
 
             public void access(char[] clearChars) {
-                buf.append(clearChars);
+                builder.append(clearChars);
             }
         });
-        return buf.toString();
+        return builder.toString();
     }
 
     public Set<Attribute> toAttributeSet(boolean passwdColDefined) {

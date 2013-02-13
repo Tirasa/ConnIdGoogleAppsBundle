@@ -114,15 +114,15 @@ public class GoogleAppsUserOps {
             return null;
         }
 
-        final StringBuffer buf = new StringBuffer();
+        final StringBuilder builder = new StringBuilder();
 
         password.access(new GuardedString.Accessor() {
 
             public void access(char[] clearChars) {
-                buf.append(clearChars);
+                builder.append(clearChars);
             }
         });
-        return buf.toString();
+        return builder.toString();
     }
 
     void delete(String id) {
