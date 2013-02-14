@@ -89,16 +89,14 @@
   <dependencies>
     <dependency>
       <groupId>org.connid</groupId>
-      <artifactId>framework</artifactId>
+      <artifactId>connid-framework</artifactId>
       <version>${base.version}</version>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.connid</groupId>
-      <artifactId>framework-internal</artifactId>
+      <artifactId>connid-framework-internal</artifactId>
       <version>${base.version}</version>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -110,22 +108,21 @@
     <!-- TEST -->
     <dependency>
       <groupId>org.connid</groupId>
-      <artifactId>test-common</artifactId>
+      <artifactId>connid-test-common</artifactId>
       <version>${base.version}</version>
       <scope>test</scope>
     </dependency>
         
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.8.2</version>
+      <groupId>org.connid</groupId>
+      <artifactId>connid-test-contract</artifactId>
+      <version>${base.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.connid</groupId>
-      <artifactId>test-contract</artifactId>
-      <version>${base.version}</version>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -197,10 +194,14 @@
       <url>http://mandubian-mvn.googlecode.com/svn/trunk/mandubian-mvn/repository</url>
     </repository>
     <repository>
-        <id>sonatype</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        <releases><enabled>false</enabled></releases>
-        <snapshots><enabled>true</enabled></snapshots>
+      <id>sonatype</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
     </repository>
   </repositories>
 </project>
