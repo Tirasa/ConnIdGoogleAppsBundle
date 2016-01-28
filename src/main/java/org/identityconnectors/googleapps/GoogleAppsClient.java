@@ -35,15 +35,12 @@ import com.google.gdata.data.appsforyourdomain.provisioning.NicknameFeed;
 import com.google.gdata.data.appsforyourdomain.provisioning.UserEntry;
 import com.google.gdata.data.appsforyourdomain.provisioning.UserFeed;
 import com.google.gdata.util.ServiceException;
-
-
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
@@ -54,32 +51,36 @@ import org.identityconnectors.framework.common.objects.Uid;
  *
  * Helper class containing the google apps methods to perform CRUD operations on
  * google apps accounts
- * 
- * 
- * Attribution: This is based on the sample application in the google apps java toolkit. 
- * 
+ *
+ *
+ * Attribution: This is based on the sample application in the google apps java toolkit.
+ *
  * @author Warren Strange
  */
 public class GoogleAppsClient {
 
     public final static String SERVICENAME = "identityConnectors";
+
     protected static final String SERVICE_VERSION = "2.0";
+
     protected NicknameService nicknameService;
+
     protected UserService userService;
+
     protected AppsGroupsService groupService;
+
     private String domainUrlBase;
+
     private String admin;
 
-
-    private Log log = Log.getLog(GoogleAppsClient.class);
     /**
      * Constructs a google apps connection object for the given domain using the
      * given admin credentials.
      *
-     * @param adminLogin An admin user id WITHOYT the @doman. Example:  admin
+     * @param adminLogin An admin user id WITHOYT the @doman. Example: admin
      * @param adminPassword The admin's password
-     * @param domainURL  The domain to administer - including the google https prefix 
-     *      example: https://www.google.com/a/feeds/mycompany.com
+     * @param domainURL The domain to administer - including the google https prefix
+     * example: https://www.google.com/a/feeds/mycompany.com
      * @param domain - the domain. Example: acme.com
      */
     public GoogleAppsClient(String adminLogin, String adminPassword,
@@ -108,9 +109,9 @@ public class GoogleAppsClient {
 
     /**
      * Retrieves a user.
-     * 
+     *
      * @param username The user you wish to retrieve.
-     * @return A UserEntry object of the retrieved user. 
+     * @return A UserEntry object of the retrieved user.
      * @throws AppsForYourDomainException If a Provisioning API specific occurs.
      * @throws ServiceException If a generic GData framework error occurs.
      * @throws IOException If an error occurs communicating with the GData
@@ -119,7 +120,7 @@ public class GoogleAppsClient {
     public UserEntry getUserEntry(String username) {
         try {
             URL retrieveUrl = new URL(domainUrlBase + "user/" + SERVICE_VERSION + "/" + username);
-            return (UserEntry) userService.getEntry(retrieveUrl, UserEntry.class);
+            return userService.getEntry(retrieveUrl, UserEntry.class);
         } catch (AppsForYourDomainException e) {
             if (e.getErrorCode() == AppsForYourDomainErrorCode.EntityDoesNotExist) {
                 // ok
@@ -132,10 +133,10 @@ public class GoogleAppsClient {
     }
 
     /**
-     * Test the connection. 
-     * 
+     * Test the connection.
+     *
      * todo: We need to find a less expensive call to test the connection
-     * 
+     *
      */
     public void testConnection() {
         // fetch the admin account to test the connection.
@@ -149,8 +150,8 @@ public class GoogleAppsClient {
     }
 
     /**
-     * Retrieves all users in domain.  This method may be very slow for domains
-     * with a large number of users.  Any changes to users, including creations
+     * Retrieves all users in domain. This method may be very slow for domains
+     * with a large number of users. Any changes to users, including creations
      * and deletions, which are made after this method is called may or may not be
      * included in the Feed which is returned.
      *
@@ -169,7 +170,7 @@ public class GoogleAppsClient {
         Link nextLink;
 
         do {
-            currentPage = (UserFeed) userService.getFeed(retrieveUrl, UserFeed.class);
+            currentPage = userService.getFeed(retrieveUrl, UserFeed.class);
             allUsers.getEntries().addAll(currentPage.getEntries());
             nextLink = currentPage.getLink(Link.Rel.NEXT, Link.Type.ATOM);
             if (nextLink != null) {
@@ -203,12 +204,12 @@ public class GoogleAppsClient {
     /**
      * The google java api does not have a remove owner api?.
      * See http://code.google.com/p/gdata-java-client/issues/detail?id=179
-     * 
+     *
      * @param groupId
      * @param user
      */
     void removeGroupOwner(String groupId, String user) {
-       throw new RuntimeException("Google API does not implment remove group owner?");
+        throw new RuntimeException("Google API does not implment remove group owner?");
     }
 
     List<String> getGroupMembershipsForUser(String accountId) {
@@ -216,65 +217,65 @@ public class GoogleAppsClient {
         try {
             GenericFeed f = groupService.retrieveGroups(accountId, true);
             List<GenericEntry> x = f.getEntries();
-            for( GenericEntry item:x) {
+            for (GenericEntry item : x) {
                 String group = item.getProperty(AppsGroupsService.APPS_PROP_GROUP_ID);
                 l.add(group);
             }
-        }
-        catch(Exception e) {
+        } catch (Exception e) {
             throw ConnectorException.wrap(e);
         }
         return l;
     }
 
-
-   
     /**
-     * An iterator over google apps accounts.  This is wrapper around 
+     * An iterator over google apps accounts. This is wrapper around
      * the google apps iterator mechanism. Google apps returns results
-     * one page at at time. This iterator advances the pages as we 
+     * one page at at time. This iterator advances the pages as we
      * consume entries.
-     * 
+     *
      * Exceptions here are wrapped and converted to RuntimeException - this
      * is done to ease integration into the open connectors framework.
-     * 
+     *
      */
-    public class GoogleAppsAccountIterator implements Iterator {
+    public class GoogleAppsAccountIterator implements Iterator<UserEntry> {
 
-        URL retrieveUrl;
-        UserFeed currentPage;
-        Iterator userIterator;
+        private URL retrieveUrl;
+
+        private UserFeed currentPage;
+
+        private Iterator<UserEntry> userIterator;
 
         public GoogleAppsAccountIterator() {
 
             try {
                 retrieveUrl = new URL(domainUrlBase + "user/" + SERVICE_VERSION + "/");
-                currentPage = (UserFeed) userService.getFeed(retrieveUrl, UserFeed.class);
+                currentPage = userService.getFeed(retrieveUrl, UserFeed.class);
             } catch (Exception ex) {
                 // rethrow as a generic IOException 
                 throw new RuntimeException("Error creating google apps iterator", ex);
             }
         }
 
+        @Override
         public UserEntry next() {
             if (!hasNext()) {
                 throw new NoSuchElementException("Unexpected end of user list");
             }
 
-
-            UserEntry ue = (UserEntry) userIterator.next();
+            UserEntry ue = userIterator.next();
 
             /*
-             * 
+             *
              * for debug
-            Name n = ue.getName();
-            Login l = ue.getLogin();
-            Quota q = ue.getQuota();
-            
-            System.out.println("Get entry id=" + l.getUserName() + " name=" + n.getFamilyName() + "," + n.getGivenName() +
-            " Email=" + ue.getEmail() +
-            " isSuspended=" + l.getSuspended() + " Quota=" + q.getLimit());
-            
+             * Name n = ue.getName();
+             * Login l = ue.getLogin();
+             * Quota q = ue.getQuota();
+             *
+             * System.out.println("Get entry id=" + l.getUserName() + " name=" + n.getFamilyName() + "," +
+             * n.getGivenName() +
+             * " Email=" + ue.getEmail() +
+             * " isSuspended=" + l.getSuspended() + " Quota=" + q.getLimit());
+             *
              */
             return ue;
         }
@@ -284,11 +285,13 @@ public class GoogleAppsClient {
         }
 
         /**
-         *  Return true if there are more elements
-         * 
-         *  As a side effect - Advance the google apps page fetched if required. 
+         * Return true if there are more elements
+         *
+         * As a side effect - Advance the google apps page fetched if required.
+         *
          * @return true if there are more user entry elements to read
          */
+        @Override
         public boolean hasNext() {
 
             if (currentPage == null) {
@@ -303,7 +306,6 @@ public class GoogleAppsClient {
                 return true;
             }  // no need to advance - we have more entries to return
 
-
             // iterator is empty. See if there are more pages to fetch
             Link nextLink = currentPage.getLink(Link.Rel.NEXT, Link.Type.ATOM);
 
@@ -311,10 +313,9 @@ public class GoogleAppsClient {
                 return false;
             }
 
-
             try {
                 retrieveUrl = new URL(nextLink.getHref());
-                currentPage = (UserFeed) userService.getFeed(retrieveUrl, UserFeed.class);
+                currentPage = userService.getFeed(retrieveUrl, UserFeed.class);
             } catch (Exception ex) {
                 throw new RuntimeException("Error trying to fetch next page of results", ex);
             }
@@ -325,6 +326,7 @@ public class GoogleAppsClient {
             return hasNext();
         }
 
+        @Override
         public void remove() {
             throw new UnsupportedOperationException("Not supported yet.");
         }
@@ -345,7 +347,7 @@ public class GoogleAppsClient {
             URL feedUrl = new URL(domainUrlBase + "nickname/" + SERVICE_VERSION);
             AppsForYourDomainQuery query = new AppsForYourDomainQuery(feedUrl);
             query.setUsername(username);
-            return (NicknameFeed) nicknameService.query(query, NicknameFeed.class);
+            return nicknameService.query(query, NicknameFeed.class);
         } catch (Exception ex) {
             throw ConnectorException.wrap(ex);
         }
@@ -357,8 +359,7 @@ public class GoogleAppsClient {
             NicknameFeed nicknames = getNicknameFeed(username);
 
             if (nicknames != null) {
-                for (Iterator i = nicknames.getEntries().iterator(); i.hasNext();) {
-                    NicknameEntry ne = (NicknameEntry) i.next();
+                for (NicknameEntry ne : nicknames.getEntries()) {
                     Nickname nickname = ne.getNickname();
                     nnlist.add(nickname.getName());
                 }
@@ -374,7 +375,7 @@ public class GoogleAppsClient {
      *
      * @param username The user for which we want to create a nickname.
      * @param nickname The nickname you wish to create.
-     * @return A NicknameEntry object of the newly created nickname. 
+     * @return A NicknameEntry object of the newly created nickname.
      * @throws AppsForYourDomainException If a Provisioning API specific occurs.
      * @throws ServiceException If a generic GData framework error occurs.
      * @throws IOException If an error occurs communicating with the GData
@@ -383,7 +384,6 @@ public class GoogleAppsClient {
     public void createNickname(String username, String nickname) {
 
         try {
-            //System.out.println("Add nickname for " + username + " nick=" + nickname);
             NicknameEntry entry = new NicknameEntry();
             Nickname nicknameExtension = new Nickname();
             nicknameExtension.setName(nickname);
@@ -430,7 +430,7 @@ public class GoogleAppsClient {
     public UserEntry createUser(UserEntry entry) {
         try {
             URL insertUrl = new URL(domainUrlBase + "user/" + SERVICE_VERSION);
-            return (UserEntry) userService.insert(insertUrl, entry);
+            return userService.insert(insertUrl, entry);
         } catch (AppsForYourDomainException e) {
             if (e.getErrorCode() == AppsForYourDomainErrorCode.EntityExists) {
                 throw new AlreadyExistsException(e);
@@ -445,8 +445,8 @@ public class GoogleAppsClient {
     /**
      * Update a google apps account.
      *
-     * 
-     * 
+     *
+     *
      * @param username - user (accountId) to update
      * @param userEntry - the new values to update
      * @return the modified UserEntry
@@ -454,7 +454,7 @@ public class GoogleAppsClient {
     public UserEntry updateUser(String username, UserEntry userEntry) {
         try {
             URL updateUrl = new URL(domainUrlBase + "user/" + SERVICE_VERSION + "/" + username);
-            return (UserEntry) userService.update(updateUrl, userEntry);
+            return userService.update(updateUrl, userEntry);
         } catch (Exception e) {
             throw ConnectorException.wrap(e);
         }
@@ -487,18 +487,18 @@ public class GoogleAppsClient {
 
     /**
      * This method is used to create a new User Entry object (if userEntry == null), OR update
-     * an existing one (if userEntry is non null). 
-     * 
+     * an existing one (if userEntry is non null).
+     *
      * Non null values are set in the userEntry object
-     * 
+     *
      * @param userEntry - Existing UserEntry object to be updated. If null a new entry is created
      * @param username - The login identifier
-     * @param password  - Password - in the clear. 
+     * @param password - Password - in the clear.
      * @param givenName - Persons first (given) name
      * @param familyName = Persons last (family) name
      * @param suspended - set to true if the account is suspended
      * @param quotaLimitInMb - Users email quota limit in MB
-     * 
+     *
      * @return a new user entry object or an updated copy of the one passed in.
      */
     public UserEntry setUserEntry(UserEntry userEntry, String username, String password,
@@ -510,7 +510,6 @@ public class GoogleAppsClient {
         if (userEntry == null) {
             userEntry = new UserEntry();
         }
-
 
         Login login = userEntry.getLogin();
         if (login == null) {
@@ -552,6 +551,7 @@ public class GoogleAppsClient {
 
     /**
      * Convenience method to dump a userentry objet to a string for debug
+     *
      * @param ue userentry
      * @return String repreneation of the user entry
      */
@@ -561,15 +561,15 @@ public class GoogleAppsClient {
         if (ue != null) {
             Login login = ue.getLogin();
             if (login != null) {
-                sb.append("Login=" + login.getUserName());
+                sb.append("Login=").append(login.getUserName());
             }
             Name n = ue.getName();
             if (n != null) {
-                sb.append(" Name=" + n.getGivenName() + " " + n.getFamilyName());
+                sb.append(" Name=").append(n.getGivenName()).append(" ").append(n.getFamilyName());
             }
             Quota q = ue.getQuota();
             if (q != null) {
-                sb.append(" quota=" + q.getLimit());
+                sb.append(" quota=").append(q.getLimit());
             }
         }
         return sb.toString();
@@ -577,7 +577,7 @@ public class GoogleAppsClient {
     }
 
     // Group Operations
-    public Iterator getGroupIterator() {
+    public Iterator<GenericEntry> getGroupIterator() {
         try {
             GenericFeed groupsFeed = groupService.retrieveAllGroups();
             Iterator<GenericEntry> groupIterator = groupsFeed.getEntries().iterator();
@@ -647,7 +647,7 @@ public class GoogleAppsClient {
     }
 
     public List<String> getMembersAsList(String id) {
-        List<String> members = new ArrayList();
+        List<String> members = new ArrayList<String>();
         try {
             GenericFeed groupsFeed = groupService.retrieveAllMembers(id);
             Iterator<GenericEntry> groupsEntryIterator = groupsFeed.getEntries().iterator();
@@ -661,7 +661,7 @@ public class GoogleAppsClient {
     }
 
     public List<String> getOwnersAsList(String id) {
-        List<String> owners = new ArrayList();
+        List<String> owners = new ArrayList<String>();
         try {
             GenericFeed groupsFeed = groupService.retreiveGroupOwners(id);
             Iterator<GenericEntry> groupsEntryIterator = groupsFeed.getEntries().iterator();
