@@ -39,26 +39,26 @@
   
   <licenses>
     <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <name>CDDL 1.0</name>
+      <url>http://opensource.org/licenses/CDDL-1.0</url>
       <distribution>repo</distribution>
     </license>
   </licenses>
 
   <scm>
-    <connection>scm:git:git@github.com:Tirasa/ConnIdADBundle.git</connection>
-    <url>scm:git:git@github.com:Tirasa/ConnIdADBundle.git</url>
-    <developerConnection>scm:git:git@github.com:Tirasa/ConnIdADBundle.git</developerConnection>
+    <connection>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</connection>
+    <url>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</url>
+    <developerConnection>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</developerConnection>
   </scm>
   
   <issueManagement>
     <system>jira</system>
-    <url>https://connid.atlassian.net/browse/AD</url>
+    <url>https://connid.atlassian.net/browse/GOOGLEAPPS</url>
   </issueManagement>
 
   <ciManagement>
     <system>Travis CI</system>
-    <url>https://travis-ci.org/Tirasa/ConnIdADBundle</url>
+    <url>https://travis-ci.org/Tirasa/ConnIdGoogleAppsBundle</url>
   </ciManagement>
 
   <mailingLists>
