@@ -24,7 +24,6 @@
 package net.tirasa.connid.bundles.googleapps;
 
 import java.security.GeneralSecurityException;
-
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.common.security.SecurityUtil;
@@ -32,7 +31,6 @@ import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.spi.AbstractConfiguration;
 import org.identityconnectors.framework.spi.ConfigurationProperty;
 import org.identityconnectors.framework.spi.StatefulConfiguration;
-
 import com.google.api.client.auth.oauth2.BearerToken;
 import com.google.api.client.auth.oauth2.ClientParametersAuthentication;
 import com.google.api.client.auth.oauth2.Credential;
@@ -48,26 +46,22 @@ import com.google.api.services.licensing.Licensing;
 /**
  * Extends the {@link AbstractConfiguration} class to provide all the necessary
  * parameters to initialize the GoogleApps Connector.
- *
  */
 public class GoogleAppsConfiguration extends AbstractConfiguration implements StatefulConfiguration {
 
     private String domain = null;
 
-    /** Client identifier issued to the client during the registration process. */
+    /**
+     * Client identifier issued to the client during the registration process.
+     */
     private String clientId;
 
-    /** Client secret or {@code null} for none. */
+    /**
+     * Client secret or {@code null} for none.
+     */
     private GuardedString clientSecret = null;
 
     private GuardedString refreshToken = null;
-
-    /**
-     * Constructor.
-     */
-    public GoogleAppsConfiguration() {
-
-    }
 
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
@@ -113,9 +107,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         this.refreshToken = refreshToken;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void validate() {
         if (StringUtil.isBlank(domain)) {
@@ -135,35 +126,31 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     private Credential credential = null;
 
     public Credential getGoogleCredential() {
-        if (null == credential) {
-            synchronized (this) {
-                if (null == credential) {
-                    credential =
-                            new Credential.Builder(BearerToken.authorizationHeaderAccessMethod())
-                            .setTransport(HTTP_TRANSPORT)
-                            .setJsonFactory(JSON_FACTORY)
-                            .setTokenServerEncodedUrl(GoogleOAuthConstants.TOKEN_SERVER_URL)
-                            .setClientAuthentication(
-                                    new ClientParametersAuthentication(getClientId(),
-                                            SecurityUtil.decrypt(getClientSecret())))
-                            .build();
+        synchronized (this) {
+            if (null == credential) {
+                credential = new Credential.Builder(BearerToken.authorizationHeaderAccessMethod()).
+                        setTransport(HTTP_TRANSPORT).
+                        setJsonFactory(JSON_FACTORY).
+                        setTokenServerEncodedUrl(GoogleOAuthConstants.TOKEN_SERVER_URL).
+                        setClientAuthentication(
+                                new ClientParametersAuthentication(getClientId(),
+                                        SecurityUtil.decrypt(getClientSecret())))
+                        .build();
 
-                    getRefreshToken().access(new GuardedString.Accessor() {
+                getRefreshToken().access(new GuardedString.Accessor() {
 
-                        @Override
-                        public void access(char[] chars) {
-                            credential.setRefreshToken(new String(chars));
-                        }
-                    });
+                    @Override
+                    public void access(char[] chars) {
+                        credential.setRefreshToken(new String(chars));
+                    }
+                });
 
-                    directory =
-                            new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-                            .setApplicationName("OpenICF").build();
-                    licensing =
-                            new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-                            .setApplicationName("OpenICF").build();
-
-                }
+                directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).
+                        setApplicationName("ConnId").
+                        build();
+                licensing = new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).
+                        setApplicationName("ConnId").
+                        build();
             }
         }
         return credential;

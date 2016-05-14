@@ -24,7 +24,6 @@
 package net.tirasa.connid.bundles.googleapps;
 
 import java.io.IOException;
-
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;

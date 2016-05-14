@@ -43,13 +43,11 @@ import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.PredefinedAttributeInfos;
 import org.identityconnectors.framework.common.objects.PredefinedAttributes;
 import org.identityconnectors.framework.common.objects.Uid;
-
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.OrgUnit;
 
 /**
- * OrgunitsHandler is a util class to cover all Organizations Unit related
- * operations.
+ * OrgunitsHandler is a util class to cover all Organizations Unit related operations.
  *
  * @author Laszlo Hordos
  */
@@ -86,8 +84,8 @@ public class OrgunitsHandler {
         // primaryEmail
         builder.addAttributeInfo(Name.INFO);
         // parentOrgUnitPath
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PARENT_ORG_UNIT_PATH_ATTR)
-                .setRequired(true).build());
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PARENT_ORG_UNIT_PATH_ATTR).
+                setRequired(true).build());
 
         // optional
         builder.addAttributeInfo(PredefinedAttributeInfos.DESCRIPTION);
@@ -97,9 +95,7 @@ public class OrgunitsHandler {
         return builder.build();
     }
 
-    public static Directory.Orgunits.Insert createOrgunit(Directory.Orgunits service,
-            AttributesAccessor attributes) {
-
+    public static Directory.Orgunits.Insert createOrgunit(Directory.Orgunits service, AttributesAccessor attributes) {
         OrgUnit resource = new OrgUnit();
         resource.setParentOrgUnitPath(getParentOrgUnitPath(attributes));
         resource.setName(getOrgUnitNameFromPath(attributes.getName()));
@@ -112,15 +108,15 @@ public class OrgunitsHandler {
             return service.
                     insert(GoogleAppsConnector.MY_CUSTOMER_ID, resource).
                     setFields(GoogleAppsConnector.ORG_UNIT_PATH_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static Directory.Orgunits.Patch updateOrgunit(Directory.Orgunits service,
-            String orgUnitPath, AttributesAccessor attributes) {
+    public static Directory.Orgunits.Patch updateOrgunit(
+            Directory.Orgunits service, String orgUnitPath, AttributesAccessor attributes) {
+
         OrgUnit resource = null;
 
         String orgUnitName = getOrgUnitNameFromPath(attributes.getName());
@@ -170,7 +166,6 @@ public class OrgunitsHandler {
             // Full path of the organization unit
             return service.patch(GoogleAppsConnector.MY_CUSTOMER_ID, CollectionUtil.newList(orgUnitPath), resource)
                     .setFields(GoogleAppsConnector.ORG_UNIT_PATH_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Orgunits#Patch");
             throw ConnectorException.wrap(e);

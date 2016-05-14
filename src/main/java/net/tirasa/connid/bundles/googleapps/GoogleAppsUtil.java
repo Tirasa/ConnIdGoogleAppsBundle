@@ -29,11 +29,6 @@ import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.Name;
 
-/**
- * A NAME does ...
- *
- * @author Laszlo Hordos
- */
 public class GoogleAppsUtil {
 
     public static String getName(Name name) {

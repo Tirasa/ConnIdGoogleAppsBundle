@@ -1,25 +1,25 @@
 /*
+ * ====================
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Copyright (c) 2014 ForgeRock AS. All Rights Reserved
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * The contents of this file are subject to the terms of the Common Development
+ * and Distribution License("CDDL") (the "License").  You may not use this file
+ * except in compliance with the License.
  *
  * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
+ * http://opensource.org/licenses/cddl1.php
+ * See the License for the specific language governing permissions and limitations
+ * under the License.
  *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
+ * When distributing the Covered Code, include this CDDL Header Notice in each file
+ * and include the License file at http://opensource.org/licenses/cddl1.php.
+ * If applicable, add the following below this CDDL Header, with the fields
+ * enclosed by brackets [] replaced by your own identifying information:
  * "Portions Copyrighted [year] [name of copyright owner]"
+ * ====================
+ * Portions Copyrighted 2016 ConnId.
  */
 package net.tirasa.connid.bundles.googleapps;
 
@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AbstractPromptReceiver;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -76,15 +75,15 @@ public class Main {
     public static final java.lang.String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
-    // @formatter:off
     private static final List<String> SCOPES = Arrays.asList(
             ADMIN_DIRECTORY_GROUP,
             ADMIN_DIRECTORY_ORGUNIT,
             ADMIN_DIRECTORY_USER,
             ADMIN_ENTERPRISE_LICENSE);
-    // @formatter:on
 
-    /** Global instance of the HTTP transport. */
+    /**
+     * Global instance of the HTTP transport.
+     */
     private static final HttpTransport HTTP_TRANSPORT;
 
     static {
@@ -100,7 +99,9 @@ public class Main {
         HTTP_TRANSPORT = t;
     }
 
-    /** Global instance of the JSON factory. */
+    /**
+     * Global instance of the JSON factory.
+     */
     private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
     public static void main(String[] args) throws Exception {
@@ -119,23 +120,21 @@ public class Main {
             }
         }
 
-        String fileName =
-                new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI())
-                .getName();
+        String fileName = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).
+                getName();
         System.out.print("Usage: java -jar " + fileName + " <path to client_secrets.json>");
     }
 
-    static Map<String, Object> getConfigurationMap(File clientJson) throws IOException,
-            URISyntaxException {
+    static Map<String, Object> getConfigurationMap(File clientJson) throws IOException, URISyntaxException {
 
         GoogleClientSecrets clientSecrets =
                 GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
 
         Credential credential =
-                new AuthorizationCodeInstalledApp(new GoogleAuthorizationCodeFlow.Builder(
-                        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES).setAccessType(
-                        "offline").setApprovalPrompt("force").setDataStoreFactory(
-                        MemoryDataStoreFactory.getDefaultInstance()).build(),
+                new AuthorizationCodeInstalledApp(
+                        new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES).
+                        setAccessType("offline").setApprovalPrompt("force").
+                        setDataStoreFactory(MemoryDataStoreFactory.getDefaultInstance()).build(),
                         new AbstractPromptReceiver() {
 
                     @Override

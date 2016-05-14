@@ -26,7 +26,6 @@ package net.tirasa.connid.bundles.googleapps;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
@@ -47,11 +46,6 @@ import com.google.api.services.licensing.Licensing;
 import com.google.api.services.licensing.model.LicenseAssignment;
 import com.google.api.services.licensing.model.LicenseAssignmentInsert;
 
-/**
- * A NAME does ...
- *
- * @author Laszlo Hordos
- */
 public class LicenseAssignmentsHandler {
 
     /**
@@ -147,6 +141,7 @@ public class LicenseAssignmentsHandler {
 
     public static Licensing.LicenseAssignments.Patch updateLicenseAssignment(
             Licensing.LicenseAssignments service, String groupKey, AttributesAccessor attributes) {
+
         LicenseAssignment content = null;
 
         Matcher name = LICENSE_NAME_PATTERN.matcher(groupKey);
@@ -218,8 +213,7 @@ public class LicenseAssignmentsHandler {
     }
 
     public static Uid generateLicenseAssignmentId(LicenseAssignment content) {
-        String id =
-                content.getProductId() + "/sku/" + content.getSkuId() + "/user/"
+        String id = content.getProductId() + "/sku/" + content.getSkuId() + "/user/"
                 + content.getUserId();
         if (null != content.getEtags()) {
             return new Uid(id, content.getEtags());

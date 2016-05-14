@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
-
 import org.identityconnectors.common.Assertions;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.IOUtil;
@@ -78,7 +77,6 @@ import org.identityconnectors.framework.spi.operations.SchemaOp;
 import org.identityconnectors.framework.spi.operations.SearchOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
 import org.identityconnectors.framework.spi.operations.UpdateOp;
-
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
@@ -102,7 +100,6 @@ import com.google.api.services.licensing.model.LicenseAssignmentList;
 
 /**
  * Main implementation of the GoogleApps Connector.
- *
  */
 @ConnectorClass(displayNameKey = "GoogleApps.connector.display",
         configurationClass = GoogleAppsConfiguration.class)
@@ -292,7 +289,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-
             Uid uid = execute(UserHandler.createUser(configuration.getDirectory().users(), accessor),
                     new RequestResultHandler<Directory.Users.Insert, User, Uid>() {
 
@@ -310,7 +306,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         configuration.getDirectory().users().aliases();
                 for (Object member : aliases) {
                     if (member instanceof String) {
-
                         String id = execute(UserHandler.createUserAlias(aliasesService, uid.getUidValue(),
                                 (String) member),
                                 new RequestResultHandler<Directory.Users.Aliases.Insert, Alias, String>() {
@@ -346,7 +341,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             if (null != photo) {
                 Object photoObject = AttributeUtil.getSingleValue(photo);
                 if (photoObject instanceof byte[]) {
-
                     String id = execute(UserHandler.createUpdateUserPhoto(
                             configuration.getDirectory().users().photos(), uid.getUidValue(), (byte[]) photoObject),
                             new RequestResultHandler<Directory.Users.Photos.Update, UserPhoto, String>() {
@@ -369,9 +363,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                 } else if (null != photoObject) {
                     // Delete group and Error or
-                    RetryableException e =
-                            RetryableException.wrap("Invalid attribute value: "
-                                    + String.valueOf(photoObject), uid);
+                    RetryableException e = RetryableException.wrap("Invalid attribute value: "
+                            + String.valueOf(photoObject), uid);
                     e.initCause(new InvalidAttributeValueException(
                             "Attribute 'photo' must be a single Map value"));
                     throw e;
@@ -434,7 +427,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 final Directory.Members membersService = configuration.getDirectory().members();
                 for (Object member : members) {
                     if (member instanceof Map) {
-
                         String email = (String) ((Map) member).get(EMAIL_ATTR);
                         String role = (String) ((Map) member).get(ROLE_ATTR);
 
@@ -442,9 +434,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 new RequestResultHandler<Directory.Members.Insert, Member, String>() {
 
                             @Override
-                            public String handleResult(
-                                    final Directory.Members.Insert request,
-                                    final Member value) {
+                            public String handleResult(final Directory.Members.Insert request, final Member value) {
                                 if (null != value) {
                                     return value.getEmail();
                                 } else {
@@ -470,26 +460,22 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             return uid;
         } else if (MEMBER.equals(objectClass)) {
-
             return execute(GroupHandler.createMember(configuration.getDirectory().members(), accessor),
                     new RequestResultHandler<Directory.Members.Insert, Member, Uid>() {
 
                 @Override
                 public Uid handleResult(final Directory.Members.Insert request,
                         final Member value) {
-                    LOG.ok("New Member is created:{0}/{1}", request.getGroupKey(), value
-                            .getEmail());
+                    LOG.ok("New Member is created:{0}/{1}", request.getGroupKey(), value.getEmail());
                     return GroupHandler.generateMemberId(request.getGroupKey(), value);
                 }
             });
         } else if (ORG_UNIT.equals(objectClass)) {
-
             return execute(OrgunitsHandler.createOrgunit(configuration.getDirectory().orgunits(), accessor),
                     new RequestResultHandler<Directory.Orgunits.Insert, OrgUnit, Uid>() {
 
                 @Override
-                public Uid handleResult(final Directory.Orgunits.Insert request,
-                        final OrgUnit value) {
+                public Uid handleResult(final Directory.Orgunits.Insert request, final OrgUnit value) {
                     LOG.ok("New OrgUnit is created:{0}", value.getName());
                     return OrgunitsHandler.generateOrgUnitId(value);
                 }
@@ -515,8 +501,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     new RequestResultHandler<Licensing.LicenseAssignments.Insert, LicenseAssignment, Uid>() {
 
                 @Override
-                public Uid handleResult(final Licensing.LicenseAssignments.Insert request,
+                public Uid handleResult(
+                        final Licensing.LicenseAssignments.Insert request,
                         final LicenseAssignment value) {
+
                     LOG.ok("LicenseAssignment is Created:{0}/{1}/{2}", value
                             .getProductId(), value.getSkuId(), value.getUserId());
                     return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
@@ -531,12 +519,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void delete(final ObjectClass objectClass, final Uid uid, final OperationOptions options) {
-
         AbstractGoogleJsonClientRequest<Void> request = null;
 
         try {
@@ -565,9 +549,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     throw new UnknownUidException("Invalid ID format");
                 }
             } else if (ORG_UNIT.equals(objectClass)) {
-                request =
-                        configuration.getDirectory().orgunits().delete(MY_CUSTOMER_ID,
-                                CollectionUtil.newList(uid.getUidValue()));
+                request = configuration.getDirectory().orgunits().
+                        delete(MY_CUSTOMER_ID, CollectionUtil.newList(uid.getUidValue()));
             } else if (LICENSE_ASSIGNMENT.equals(objectClass)) {
                 request = LicenseAssignmentsHandler.deleteLicenseAssignment(
                         configuration.getLicensing().licenseAssignments(), uid.getUidValue());
@@ -583,12 +566,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     + objectClass.getObjectClassValue() + " is not supported");
         }
 
-        execute(request,
-                new RequestResultHandler<AbstractGoogleJsonClientRequest<Void>, Void, Void>() {
+        execute(request, new RequestResultHandler<AbstractGoogleJsonClientRequest<Void>, Void, Void>() {
 
             @Override
-            public Void handleResult(AbstractGoogleJsonClientRequest<Void> request,
-                    Void value) {
+            public Void handleResult(final AbstractGoogleJsonClientRequest<Void> request, final Void value) {
                 return null;
             }
 
@@ -599,9 +580,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         });
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @SuppressWarnings("unchecked")
     public Schema schema() {
@@ -639,12 +617,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return schema;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public FilterTranslator<Filter> createFilterTranslator(ObjectClass objectClass,
-            OperationOptions options) {
+    public FilterTranslator<Filter> createFilterTranslator(ObjectClass objectClass, OperationOptions options) {
         return new FilterTranslator<Filter>() {
 
             @Override
@@ -654,21 +628,19 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         };
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public void executeQuery(ObjectClass objectClass, Filter query, final ResultsHandler handler,
-            OperationOptions options) {
+    public void executeQuery(
+            final ObjectClass objectClass,
+            final Filter query,
+            final ResultsHandler handler,
+            final OperationOptions options) {
 
         final Set<String> attributesToGet = getAttributesToGet(objectClass, options);
         Attribute key = getKeyFromFilter(objectClass, query);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-
             if (null == key) {
                 // Search request
-
                 try {
                     Directory.Users.List request = configuration.getDirectory().users().list();
                     if (null != query) {
@@ -706,8 +678,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
 
                     if (options.getOptions().get(SHOW_DELETED_PARAM) instanceof Boolean) {
-                        request.setShowDeleted(options.getOptions().get(SHOW_DELETED_PARAM)
-                                .toString());
+                        request.setShowDeleted(options.getOptions().get(SHOW_DELETED_PARAM).toString());
                     }
 
                     // Implementation to support the 'OP_SORT_KEYS'
@@ -740,34 +711,28 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     String nextPageToken = null;
                     do {
-                        nextPageToken =
-                                execute(request,
-                                        new RequestResultHandler<Directory.Users.List, Users, String>() {
+                        nextPageToken = execute(request,
+                                new RequestResultHandler<Directory.Users.List, Users, String>() {
 
-                                    @Override
-                                    public String handleResult(
-                                            final Directory.Users.List request,
-                                            final Users value) {
-                                        if (null != value.getUsers()) {
-                                            for (User group : value.getUsers()) {
-                                                handler.handle(fromUser(group,
-                                                        attributesToGet, configuration
-                                                        .getDirectory().groups()));
-                                            }
-                                        }
-                                        return value.getNextPageToken();
+                            @Override
+                            public String handleResult(final Directory.Users.List request, final Users value) {
+                                if (null != value.getUsers()) {
+                                    for (User group : value.getUsers()) {
+                                        handler.handle(fromUser(
+                                                group, attributesToGet, configuration.getDirectory().groups()));
                                     }
-                                });
+                                }
+                                return value.getNextPageToken();
+                            }
+                        });
                         request.setPageToken(nextPageToken);
                     } while (!paged && StringUtil.isNotBlank(nextPageToken));
 
                     if (paged && StringUtil.isNotBlank(nextPageToken)) {
                         LOG.info("Paged Search was requested and next token is:{0}",
                                 nextPageToken);
-                        ((SearchResultsHandler) handler).handleResult(new SearchResult(
-                                nextPageToken, 0));
+                        ((SearchResultsHandler) handler).handleResult(new SearchResult(nextPageToken, 0));
                     }
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#List");
                     throw ConnectorException.wrap(e);
@@ -775,7 +740,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             } else {
                 // Read request
-
                 try {
                     Directory.Users.Get request =
                             configuration.getDirectory().users().get((String) key.getValue().get(0));
@@ -785,8 +749,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             new RequestResultHandler<Directory.Users.Get, User, Boolean>() {
 
                         @Override
-                        public Boolean handleResult(final Directory.Users.Get request,
-                                final User value) {
+                        public Boolean handleResult(final Directory.Users.Get request, final User value) {
                             return handler.handle(fromUser(value, attributesToGet,
                                     configuration.getDirectory().groups()));
                         }
@@ -797,7 +760,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             return true;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#Get");
                     throw ConnectorException.wrap(e);
@@ -807,10 +769,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         } else if (ObjectClass.GROUP.equals(objectClass)) {
             if (null == key) {
                 // Search request
-
                 try {
                     // userKey excludes the customer and domain!!
-
                     Directory.Groups.List request = configuration.getDirectory().groups().list();
                     if (null != query) {
                         query.accept(new GroupHandler(), request);
@@ -834,33 +794,27 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     String nextPageToken = null;
                     do {
-                        nextPageToken =
-                                execute(request,
-                                        new RequestResultHandler<Directory.Groups.List, Groups, String>() {
+                        nextPageToken = execute(request,
+                                new RequestResultHandler<Directory.Groups.List, Groups, String>() {
 
-                                    @Override
-                                    public String handleResult(
-                                            final Directory.Groups.List request,
-                                            final Groups value) {
-                                        if (null != value.getGroups()) {
-                                            for (Group group : value.getGroups()) {
-                                                handler.handle(fromGroup(group,
-                                                        attributesToGet, configuration
-                                                        .getDirectory().members()));
-                                            }
-                                        }
-                                        return value.getNextPageToken();
+                            @Override
+                            public String handleResult(final Directory.Groups.List request, final Groups value) {
+                                if (null != value.getGroups()) {
+                                    for (Group group : value.getGroups()) {
+                                        handler.handle(fromGroup(
+                                                group, attributesToGet, configuration.getDirectory().members()));
                                     }
-                                });
+                                }
+                                return value.getNextPageToken();
+                            }
+                        });
                         request.setPageToken(nextPageToken);
                     } while (!paged && StringUtil.isNotBlank(nextPageToken));
 
                     if (paged && StringUtil.isNotBlank(nextPageToken)) {
                         LOG.info("Paged Search was requested");
-                        ((SearchResultsHandler) handler).handleResult(new SearchResult(
-                                nextPageToken, 0));
+                        ((SearchResultsHandler) handler).handleResult(new SearchResult(nextPageToken, 0));
                     }
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#List");
                     throw ConnectorException.wrap(e);
@@ -874,23 +828,20 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             configuration.getDirectory().groups().get((String) key.getValue().get(0));
                     request.setFields(getFields(options, ID_ATTR, ETAG_ATTR, EMAIL_ATTR));
 
-                    execute(request,
-                            new RequestResultHandler<Directory.Groups.Get, Group, Boolean>() {
+                    execute(request, new RequestResultHandler<Directory.Groups.Get, Group, Boolean>() {
 
                         @Override
-                        public Boolean handleResult(final Directory.Groups.Get request,
-                                final Group value) {
+                        public Boolean handleResult(final Directory.Groups.Get request, final Group value) {
                             return handler.handle(fromGroup(value, attributesToGet,
                                     configuration.getDirectory().members()));
                         }
 
                         @Override
-                        public Boolean handleNotFound(IOException e) {
+                        public Boolean handleNotFound(final IOException e) {
                             // Do nothing if not found
                             return true;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#Get");
                     throw ConnectorException.wrap(e);
@@ -901,24 +852,20 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 // Search request
                 // TODO support AND role
                 try {
-
                     String groupKey = null;
 
                     if (query instanceof EqualsFilter
                             && ((EqualsFilter) query).getAttribute().is(GROUP_KEY_ATTR)) {
-                        groupKey =
-                                AttributeUtil.getStringValue(((AttributeFilter) query)
-                                        .getAttribute());
+
+                        groupKey = AttributeUtil.getStringValue(((AttributeFilter) query).getAttribute());
                     } else {
-                        throw new UnsupportedOperationException(
-                                "Only EqualsFilter('groupKey') is supported");
+                        throw new UnsupportedOperationException("Only EqualsFilter('groupKey') is supported");
                     }
 
                     if (StringUtil.isBlank(groupKey)) {
                         throw new InvalidAttributeValueException("The 'groupKey' can not be blank.");
                     }
-                    Directory.Members.List request =
-                            configuration.getDirectory().members().list(groupKey);
+                    Directory.Members.List request = configuration.getDirectory().members().list(groupKey);
 
                     boolean paged = false;
                     // Groups
@@ -950,18 +897,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     if (paged && StringUtil.isNotBlank(nextPageToken)) {
                         LOG.info("Paged Search was requested");
-                        ((SearchResultsHandler) handler).handleResult(new SearchResult(
-                                nextPageToken, 0));
+                        ((SearchResultsHandler) handler).handleResult(new SearchResult(nextPageToken, 0));
                     }
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#List");
                     throw ConnectorException.wrap(e);
                 }
-
             } else {
                 // Read request
-
                 try {
                     String[] ids = ((Uid) key).getUidValue().split("/");
                     if (ids.length != 2) {
@@ -969,8 +912,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         throw new InvalidAttributeValueException("Unrecognised UID format");
                     }
 
-                    Directory.Members.Get request =
-                            configuration.getDirectory().members().get(ids[0], ids[1]);
+                    Directory.Members.Get request = configuration.getDirectory().members().get(ids[0], ids[1]);
 
                     execute(request,
                             new RequestResultHandler<Directory.Members.Get, Member, Boolean>() {
@@ -981,12 +923,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         }
 
                         @Override
-                        public Boolean handleNotFound(IOException e) {
+                        public Boolean handleNotFound(final IOException e) {
                             // Do nothing if not found
                             return true;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#Get");
                     throw ConnectorException.wrap(e);
@@ -995,14 +936,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         } else if (ORG_UNIT.equals(objectClass)) {
             if (null == key) {
                 // Search request
-
                 try {
-                    Directory.Orgunits.List request =
-                            configuration.getDirectory().orgunits().list(MY_CUSTOMER_ID);
+                    Directory.Orgunits.List request = configuration.getDirectory().orgunits().list(MY_CUSTOMER_ID);
                     if (null != query) {
                         if (query instanceof StartsWithFilter
-                                && AttributeUtil.namesEqual(ORG_UNIT_PATH_ATTR,
-                                        ((StartsWithFilter) query).getName())) {
+                                && AttributeUtil.namesEqual(ORG_UNIT_PATH_ATTR, ((StartsWithFilter) query).getName())) {
+
                             request.setOrgUnitPath(((StartsWithFilter) query).getValue());
                         } else {
                             throw new UnsupportedOperationException(
@@ -1015,6 +954,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     String scope = options.getScope();
                     if (OperationOptions.SCOPE_OBJECT.equalsIgnoreCase(scope)
                             || OperationOptions.SCOPE_ONE_LEVEL.equalsIgnoreCase(scope)) {
+
                         request.setType("children");
                     } else {
                         request.setType("all");
@@ -1040,27 +980,22 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             return null;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize OrgUnits#List");
                     throw ConnectorException.wrap(e);
                 }
-
             } else {
                 // Read request
-
                 try {
-                    Directory.Orgunits.Get request =
-                            configuration.getDirectory().orgunits().get(MY_CUSTOMER_ID,
-                                    Arrays.asList((String) key.getValue().get(0)));
+                    Directory.Orgunits.Get request = configuration.getDirectory().orgunits().
+                            get(MY_CUSTOMER_ID, Arrays.asList((String) key.getValue().get(0)));
                     request.setFields(getFields(options, ORG_UNIT_PATH_ATTR, ETAG_ATTR, NAME_ATTR));
 
                     execute(request,
                             new RequestResultHandler<Directory.Orgunits.Get, OrgUnit, Boolean>() {
 
                         @Override
-                        public Boolean handleResult(Directory.Orgunits.Get request,
-                                OrgUnit value) {
+                        public Boolean handleResult(Directory.Orgunits.Get request, OrgUnit value) {
                             return handler.handle(OrgunitsHandler.fromOrgunit(value, attributesToGet));
                         }
 
@@ -1070,7 +1005,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             return true;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize OrgUnits#Get");
                     throw ConnectorException.wrap(e);
@@ -1079,9 +1013,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         } else if (LICENSE_ASSIGNMENT.equals(objectClass)) {
             if (null == key) {
                 // Search request
-
                 try {
-
                     String productId = "";
                     String skuId = "";
 
@@ -1094,8 +1026,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         throw new ConnectorException("productId is required");
                     } else if (StringUtil.isBlank(skuId)) {
                         Licensing.LicenseAssignments.ListForProduct r =
-                                configuration.getLicensing().licenseAssignments().listForProduct(
-                                        productId, MY_CUSTOMER_ID);
+                                configuration.getLicensing().licenseAssignments().
+                                listForProduct(productId, MY_CUSTOMER_ID);
 
                         if (options.getPageSize() != null && 0 < options.getPageSize()) {
                             r.setMaxResults(Long.valueOf(options.getPageSize()));
@@ -1105,8 +1037,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         request = r;
                     } else {
                         Licensing.LicenseAssignments.ListForProductAndSku r =
-                                configuration.getLicensing().licenseAssignments()
-                                .listForProductAndSku(productId, skuId, MY_CUSTOMER_ID);
+                                configuration.getLicensing().licenseAssignments().
+                                listForProductAndSku(productId, skuId, MY_CUSTOMER_ID);
 
                         if (options.getPageSize() != null && 0 < options.getPageSize()) {
                             r.setMaxResults(Long.valueOf(options.getPageSize()));
@@ -1118,25 +1050,24 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     String nextPageToken = null;
                     do {
-                        nextPageToken =
-                                execute(request,
-                                        new RequestResultHandler<
-                                                LicensingRequest<LicenseAssignmentList>, LicenseAssignmentList, String>() {
+                        nextPageToken = execute(request,
+                                new RequestResultHandler<
+                                                LicensingRequest<
+                                                        LicenseAssignmentList>, LicenseAssignmentList, String>() {
 
-                                    @Override
-                                    public String handleResult(
-                                            LicensingRequest<LicenseAssignmentList> request,
-                                            LicenseAssignmentList value) {
+                            @Override
+                            public String handleResult(
+                                    LicensingRequest<LicenseAssignmentList> request,
+                                    LicenseAssignmentList value) {
 
-                                        if (null != value.getItems()) {
-                                            for (LicenseAssignment resource : value.getItems()) {
-                                                handler.handle(LicenseAssignmentsHandler.
-                                                        fromLicenseAssignment(resource));
-                                            }
-                                        }
-                                        return value.getNextPageToken();
+                                if (null != value.getItems()) {
+                                    for (LicenseAssignment resource : value.getItems()) {
+                                        handler.handle(LicenseAssignmentsHandler.fromLicenseAssignment(resource));
                                     }
-                                });
+                                }
+                                return value.getNextPageToken();
+                            }
+                        });
                         if (request instanceof Licensing.LicenseAssignments.ListForProduct) {
                             ((Licensing.LicenseAssignments.ListForProduct) request).setPageToken(nextPageToken);
                         } else {
@@ -1146,20 +1077,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     if (paged && StringUtil.isNotBlank(nextPageToken)) {
                         LOG.info("Paged Search was requested");
-                        ((SearchResultsHandler) handler).handleResult(new SearchResult(
-                                nextPageToken, 0));
+                        ((SearchResultsHandler) handler).handleResult(new SearchResult(nextPageToken, 0));
                     }
 
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#List");
                     throw ConnectorException.wrap(e);
                 }
-
             } else {
                 // Read request
-
                 try {
-
                     Matcher name = LicenseAssignmentsHandler.LICENSE_NAME_PATTERN.matcher(((Uid) key).getUidValue());
                     if (!name.matches()) {
                         return;
@@ -1170,8 +1097,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     String userId = name.group(2);
 
                     Licensing.LicenseAssignments.Get request =
-                            configuration.getLicensing().licenseAssignments().get(productId, skuId,
-                                    userId);
+                            configuration.getLicensing().licenseAssignments().get(productId, skuId, userId);
 
                     execute(request,
                             new RequestResultHandler<Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
@@ -1180,6 +1106,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         public Boolean handleResult(
                                 Licensing.LicenseAssignments.Get request,
                                 LicenseAssignment value) {
+
                             return handler.handle(LicenseAssignmentsHandler.fromLicenseAssignment(value));
                         }
 
@@ -1189,7 +1116,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             return true;
                         }
                     });
-
                 } catch (IOException e) {
                     LOG.warn(e, "Failed to initialize Groups#Get");
                     throw ConnectorException.wrap(e);
@@ -1378,17 +1304,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void test() {
         LOG.ok("Test works well");
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Uid update(ObjectClass objectClass, Uid uid, Set<Attribute> replaceAttributes,
             OperationOptions options) {
@@ -1396,21 +1316,17 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
         Uid uidAfterUpdate = uid;
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-
             final Directory.Users.Patch patch =
                     UserHandler.updateUser(configuration.getDirectory().users(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate =
-                        execute(patch,
-                                new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
+                uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
 
-                            @Override
-                            public Uid handleResult(Directory.Users.Patch request,
-                                    User value) {
-                                LOG.ok("User is Updated:{0}", value.getId());
-                                return new Uid(value.getId(), value.getEtag());
-                            }
-                        });
+                    @Override
+                    public Uid handleResult(Directory.Users.Patch request, User value) {
+                        LOG.ok("User is Updated:{0}", value.getId());
+                        return new Uid(value.getId(), value.getEtag());
+                    }
+                });
             }
             Attribute groups = attributesAccessor.find(PredefinedAttributes.GROUPS_NAME);
             if (null != groups && null != groups.getValue()) {
@@ -1424,8 +1340,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
                             @Override
-                            public Object handleResult(Directory.Members.Delete request,
-                                    Void value) {
+                            public Object handleResult(Directory.Members.Delete request, Void value) {
                                 return null;
                             }
 
@@ -1439,16 +1354,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
                 } else {
                     final Set<String> activeGroups =
-                            listGroups(configuration.getDirectory().groups(), uidAfterUpdate
-                                    .getUidValue());
+                            listGroups(configuration.getDirectory().groups(), uidAfterUpdate.getUidValue());
 
-                    final List<Directory.Members.Insert> addGroups =
-                            new ArrayList<Directory.Members.Insert>();
+                    final List<Directory.Members.Insert> addGroups = new ArrayList<Directory.Members.Insert>();
                     final Set<String> keepGroups = CollectionUtil.newCaseInsensitiveSet();
 
                     for (Object member : groups.getValue()) {
                         if (member instanceof String) {
-                            if (activeGroups.contains(member)) {
+                            if (activeGroups.contains((String) member)) {
                                 keepGroups.add((String) member);
                             } else {
                                 String email = attributesAccessor.getName().getNameValue();
@@ -1463,12 +1376,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     // Add new Member object
                     for (Directory.Members.Insert insert : addGroups) {
-                        execute(insert,
-                                new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+                        execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
 
                             @Override
-                            public Object handleResult(Directory.Members.Insert request,
-                                    Member value) {
+                            public Object handleResult(Directory.Members.Insert request, Member value) {
                                 return null;
                             }
 
@@ -1501,21 +1412,17 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             });
                         }
                     }
-
                 }
             }
         } else if (ObjectClass.GROUP.equals(objectClass)) {
-
             final Directory.Groups.Patch patch = GroupHandler.updateGroup(
                     configuration.getDirectory().groups(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
                 uidAfterUpdate =
-                        execute(patch,
-                                new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
+                        execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
 
                             @Override
-                            public Uid handleResult(Directory.Groups.Patch request,
-                                    Group value) {
+                            public Uid handleResult(Directory.Groups.Patch request, Group value) {
                                 LOG.ok("Group is Updated:{0}", value.getId());
                                 return new Uid(value.getId(), value.getEtag());
                             }
@@ -1592,12 +1499,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     // Add new Member object
                     for (Directory.Members.Insert insert : addMembership) {
-                        execute(insert,
-                                new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+                        execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
 
                             @Override
-                            public Object handleResult(Directory.Members.Insert request,
-                                    Member value) {
+                            public Object handleResult(Directory.Members.Insert request, Member value) {
                                 return null;
                             }
 
@@ -1611,12 +1516,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     // Update existing Member object
                     for (Directory.Members.Patch request : patchMembership) {
-                        execute(request,
-                                new RequestResultHandler<Directory.Members.Patch, Member, Object>() {
+                        execute(request, new RequestResultHandler<Directory.Members.Patch, Member, Object>() {
 
                             @Override
-                            public Object handleResult(Directory.Members.Patch request,
-                                    Member value) {
+                            public Object handleResult(Directory.Members.Patch request, Member value) {
                                 return null;
                             }
                         });
@@ -1646,7 +1549,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 }
             }
         } else if (MEMBER.equals(objectClass)) {
-
             String role = attributesAccessor.findString(ROLE_ATTR);
             if (StringUtil.isNotBlank(role)) {
                 String[] ids = uid.getUidValue().split("/");
@@ -1655,14 +1557,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             GroupHandler.updateMembers(
                                     configuration.getDirectory().members(), ids[0], ids[1], role).setFields(EMAIL_ETAG);
                     uidAfterUpdate =
-                            execute(patch,
-                                    new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
+                            execute(patch, new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
 
                                 @Override
-                                public Uid handleResult(Directory.Members.Patch request,
-                                        Member value) {
-                                    LOG.ok("Member is updated:{0}/{1}", request
-                                            .getGroupKey(), value.getEmail());
+                                public Uid handleResult(Directory.Members.Patch request, Member value) {
+                                    LOG.ok("Member is updated:{0}/{1}", request.getGroupKey(), value.getEmail());
                                     return GroupHandler.generateMemberId(request.getGroupKey(), value);
                                 }
                             });
@@ -1671,40 +1570,38 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 }
             }
         } else if (ORG_UNIT.equals(objectClass)) {
-
-            final Directory.Orgunits.Patch patch =
-                    OrgunitsHandler.updateOrgunit(configuration.getDirectory().orgunits(), uid.getUidValue(),
-                            attributesAccessor);
+            final Directory.Orgunits.Patch patch = OrgunitsHandler.updateOrgunit(
+                    configuration.getDirectory().orgunits(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate = execute(patch,
-                        new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
+                uidAfterUpdate =
+                        execute(patch, new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
 
-                    @Override
-                    public Uid handleResult(Directory.Orgunits.Patch request, OrgUnit value) {
-                        LOG.ok("OrgUnit is updated:{0}", value.getName());
-                        return OrgunitsHandler.generateOrgUnitId(value);
-                    }
-                });
+                            @Override
+                            public Uid handleResult(Directory.Orgunits.Patch request, OrgUnit value) {
+                                LOG.ok("OrgUnit is updated:{0}", value.getName());
+                                return OrgunitsHandler.generateOrgUnitId(value);
+                            }
+                        });
             }
         } else if (LICENSE_ASSIGNMENT.equals(objectClass)) {
-
             final Licensing.LicenseAssignments.Patch patch =
                     LicenseAssignmentsHandler.updateLicenseAssignment(
                             configuration.getLicensing().licenseAssignments(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate = execute(patch,
-                        new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
+                uidAfterUpdate =
+                        execute(patch,
+                                new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
 
-                    @Override
-                    public Uid handleResult(
-                            Licensing.LicenseAssignments.Patch request,
-                            LicenseAssignment value) {
-                        LOG.ok("LicenseAssignment is Updated:{0}/{1}/{2}", value
-                                .getProductId(), value.getSkuId(), value
-                                .getUserId());
-                        return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
-                    }
-                });
+                            @Override
+                            public Uid handleResult(
+                                    Licensing.LicenseAssignments.Patch request,
+                                    LicenseAssignment value) {
+
+                                LOG.ok("LicenseAssignment is Updated:{0}/{1}/{2}",
+                                        value.getProductId(), value.getSkuId(), value.getUserId());
+                                return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
+                            }
+                        });
             }
         } else {
             LOG.warn("Update of type {0} is not supported", configuration.getConnectorMessages()
@@ -1888,11 +1785,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return builder.build();
     }
 
-    protected List<Map<String, String>> listMembers(Directory.Members service, String groupKey,
-            String roles) {
+    protected List<Map<String, String>> listMembers(Directory.Members service, String groupKey, String roles) {
         final List<Map<String, String>> result = new ArrayList<Map<String, String>>();
         try {
-
             Directory.Members.List request = service.list(groupKey);
             request.setRoles(StringUtil.isBlank(roles) ? "OWNER,MANAGER,MEMBER" : roles);
 
@@ -1916,9 +1811,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         return value.getNextPageToken();
                     }
                 });
-
             } while (StringUtil.isNotBlank(nextPageToken));
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Members#Delete");
             throw ConnectorException.wrap(e);
@@ -1929,7 +1822,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
     protected Set<String> listGroups(Directory.Groups service, String userKey) {
         final Set<String> result = CollectionUtil.newCaseInsensitiveSet();
         try {
-
             Directory.Groups.List request = service.list();
             request.setUserKey(userKey);
             request.setFields("groups/email");
@@ -1943,8 +1835,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         new RequestResultHandler<Directory.Groups.List, Groups, String>() {
 
                     @Override
-                    public String handleResult(Directory.Groups.List request,
-                            Groups value) {
+                    public String handleResult(Directory.Groups.List request, Groups value) {
                         if (null != value.getGroups()) {
                             for (Group group : value.getGroups()) {
                                 result.add(group.getEmail());
@@ -1953,9 +1844,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         return value.getNextPageToken();
                     }
                 });
-
             } while (StringUtil.isNotBlank(nextPageToken));
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Members#Delete");
             throw ConnectorException.wrap(e);
@@ -1963,14 +1852,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return result;
     }
 
-    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(G request,
-            RequestResultHandler<G, T, R> handler) {
-        return execute(Assertions.nullChecked(request, "Google Json ClientRequest"), Assertions
-                .nullChecked(handler, "handler"), -1);
+    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
+            G request, RequestResultHandler<G, T, R> handler) {
+
+        return execute(
+                Assertions.nullChecked(request, "Google Json ClientRequest"),
+                Assertions.nullChecked(handler, "handler"), -1);
     }
 
-    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(G request,
-            RequestResultHandler<G, T, R> handler, int retry) {
+    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
+            G request, RequestResultHandler<G, T, R> handler, int retry) {
         try {
             if (retry >= 0) {
                 long sleep = (long) ((1000 * Math.pow(2, retry)) + nextLong(1000));
@@ -1982,7 +1873,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             }
             return handler.handleResult(request, request.execute());
         } catch (GoogleJsonResponseException e) {
-
             GoogleJsonError details = e.getDetails();
             if (null != details && null != details.getErrors()) {
                 GoogleJsonError.ErrorInfo errorInfo = details.getErrors().get(0);
@@ -2018,10 +1908,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     default:
                         break;
                 }
-
             }
 
-            // } catch (HttpResponseException e) {
             if (e.getStatusCode() == HttpStatusCodes.STATUS_CODE_FORBIDDEN) {
                 if (retry < 5) {
                     return execute(request, handler, ++retry);

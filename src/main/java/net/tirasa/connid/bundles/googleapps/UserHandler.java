@@ -26,7 +26,6 @@ package net.tirasa.connid.bundles.googleapps;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
-
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
@@ -57,7 +56,6 @@ import org.identityconnectors.framework.common.objects.filter.LessThanOrEqualFil
 import org.identityconnectors.framework.common.objects.filter.NotFilter;
 import org.identityconnectors.framework.common.objects.filter.OrFilter;
 import org.identityconnectors.framework.common.objects.filter.StartsWithFilter;
-
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.Alias;
 import com.google.api.services.admin.directory.model.User;
@@ -341,8 +339,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     }
 
     @Override
-    public StringBuilder visitLessThanOrEqualFilter(Directory.Users.List list,
-            LessThanOrEqualFilter filter) {
+    public StringBuilder visitLessThanOrEqualFilter(Directory.Users.List list, LessThanOrEqualFilter filter) {
         return null;
     }
 
@@ -551,8 +548,8 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 false).setCreateable(false).build());
 
         // Virtual Attribute
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PHOTO_ATTR, byte[].class)
-                .setReturnedByDefault(false).build());
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PHOTO_ATTR, byte[].class).
+                setReturnedByDefault(false).build());
 
         builder.addAttributeInfo(PredefinedAttributeInfos.GROUPS);
 
@@ -560,8 +557,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     }
 
     // https://support.google.com/a/answer/33386
-    public static Directory.Users.Insert createUser(Directory.Users users,
-            AttributesAccessor attributes) {
+    public static Directory.Users.Insert createUser(Directory.Users users, AttributesAccessor attributes) {
         User user = new User();
         user.setPrimaryEmail(GoogleAppsUtil.getName(attributes.getName()));
         GuardedString password = attributes.getPassword();
@@ -602,24 +598,22 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         user.setPhones(attributes.findList(PHONES_ATTR));
 
         user.setSuspended(attributes.findBoolean(SUSPENDED_ATTR));
-        user.setChangePasswordAtNextLogin(attributes
-                .findBoolean(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
+        user.setChangePasswordAtNextLogin(attributes.findBoolean(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
         user.setIpWhitelisted(attributes.findBoolean(IP_WHITELISTED_ATTR));
         user.setOrgUnitPath(attributes.findString(ORG_UNIT_PATH_ATTR));
-        user.setIncludeInGlobalAddressList(attributes
-                .findBoolean(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR));
+        user.setIncludeInGlobalAddressList(attributes.findBoolean(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR));
 
         try {
             return users.insert(user).setFields(ID_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static Directory.Users.Patch updateUser(Directory.Users users, String groupKey,
-            AttributesAccessor attributes) {
+    public static Directory.Users.Patch updateUser(
+            Directory.Users users, String groupKey, AttributesAccessor attributes) {
+
         User content = null;
 
         Name email = attributes.getName();
@@ -790,6 +784,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
     public static Directory.Users.Photos.Update createUpdateUserPhoto(
             Directory.Users.Photos service, String userKey, byte[] data) {
+
         UserPhoto content = new UserPhoto();
         // Required
         content.setPhotoData(com.google.api.client.util.Base64.encodeBase64URLSafeString(data));
@@ -807,28 +802,28 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         // @formatter:on
         try {
             return service.update(userKey, content).setFields(GoogleAppsConnector.ID_ATTR);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Aliases#Insert");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static Directory.Users.Aliases.Insert createUserAlias(Directory.Users.Aliases service,
-            String userKey, String alias) {
+    public static Directory.Users.Aliases.Insert createUserAlias(
+            Directory.Users.Aliases service, String userKey, String alias) {
+
         Alias content = new Alias();
         content.setAlias(alias);
         try {
             return service.insert(userKey, content).setFields(ID_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Aliases#Insert");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static Directory.Users.Aliases.Delete deleteUserAlias(Directory.Users.Aliases service,
-            String userKey, String alias) {
+    public static Directory.Users.Aliases.Delete deleteUserAlias(
+            Directory.Users.Aliases service, String userKey, String alias) {
+
         try {
             return service.delete(userKey, alias);
             // } catch (HttpResponseException e){
