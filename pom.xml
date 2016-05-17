@@ -30,7 +30,7 @@
   <parent>
     <groupId>net.tirasa.connid</groupId>
     <artifactId>connid</artifactId>
-    <version>1.4.2.0</version>
+    <version>1.4.1.0</version>
   </parent>
 
   <groupId>net.tirasa.connid.bundles</groupId>
@@ -82,8 +82,8 @@
   </mailingLists>
 
   <properties>
-    <connid.version>1.4.2.0</connid.version>
-    <google-libs.version>1.21.0</google-libs.version>
+    <connid.version>1.4.1.0</connid.version>
+    <google-libs.version>1.22.0</google-libs.version>
         
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -118,12 +118,12 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-admin-directory</artifactId>
-      <version>directory_v1-rev63-${google-libs.version}</version>
+      <version>directory_v1-rev67-${google-libs.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-licensing</artifactId>
-      <version>v1-rev41-${google-libs.version}</version>
+      <version>v1-rev43-${google-libs.version}</version>
     </dependency>
 
     <!-- TEST -->
