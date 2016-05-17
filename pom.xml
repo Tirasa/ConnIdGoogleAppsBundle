@@ -219,6 +219,11 @@
           </descriptors>
           <archive>
             <index>true</index>
+            <manifest>
+              <mainClass>net.tirasa.connid.bundles.googleapps.Main</mainClass>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>lib/</classpathPrefix>
+            </manifest>
             <manifestEntries>
               <ConnectorBundle-FrameworkVersion>${connid.version}</ConnectorBundle-FrameworkVersion>
               <ConnectorBundle-Name>${project.artifactId}</ConnectorBundle-Name>
