@@ -23,26 +23,25 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
+import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
 import java.io.IOException;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 
-import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
-
 public abstract class RequestResultHandler<G extends AbstractGoogleJsonClientRequest<T>, T, R> {
 
     public abstract R handleResult(G request, T value);
 
-    public R handleNotFound(IOException e) {
+    public R handleNotFound(final IOException e) {
         throw new UnknownUidException(e.getMessage(), e);
     }
 
-    public R handleDuplicate(IOException e) {
+    public R handleDuplicate(final IOException e) {
         throw new AlreadyExistsException(e.getMessage(), e);
     }
 
-    public R handleError(Throwable e) {
+    public R handleError(final Throwable e) {
         throw ConnectorException.wrap(e);
     }
 }

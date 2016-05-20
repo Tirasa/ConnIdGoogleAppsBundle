@@ -717,9 +717,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             @Override
                             public String handleResult(final Directory.Users.List request, final Users value) {
                                 if (null != value.getUsers()) {
-                                    for (User group : value.getUsers()) {
+                                    for (User user : value.getUsers()) {
                                         handler.handle(fromUser(
-                                                group, attributesToGet, configuration.getDirectory().groups()));
+                                                user, attributesToGet, configuration.getDirectory().groups()));
                                     }
                                 }
                                 return value.getNextPageToken();
@@ -749,9 +749,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             new RequestResultHandler<Directory.Users.Get, User, Boolean>() {
 
                         @Override
-                        public Boolean handleResult(final Directory.Users.Get request, final User value) {
-                            return handler.handle(fromUser(value, attributesToGet,
-                                    configuration.getDirectory().groups()));
+                        public Boolean handleResult(final Directory.Users.Get request, final User user) {
+                            return handler.handle(
+                                    fromUser(user, attributesToGet, configuration.getDirectory().groups()));
                         }
 
                         @Override
@@ -1200,8 +1200,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 if (i < 0 && j < 0) {
                     attributesToGet.add(attribute);
                 } else if (i == 0 || j == 0) {
-                    throw new IllegalArgumentException("Invalid attribute name to get:/"
-                            + attribute);
+                    throw new IllegalArgumentException("Invalid attribute name to get:/" + attribute);
                 } else {
                     int l = attribute.length();
                     if (i > 0) {
@@ -1612,8 +1611,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return uidAfterUpdate;
     }
 
-    protected ConnectorObject fromUser(User user, Set<String> attributesToGet,
-            Directory.Groups service) {
+    protected ConnectorObject fromUser(final User user, Set<String> attributesToGet, final Directory.Groups service) {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         if (null != user.getEtag()) {
             builder.setUid(new Uid(user.getId(), user.getEtag()));
@@ -1623,8 +1621,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         builder.setName(user.getPrimaryEmail());
 
         // Optional
-        // If both givenName and familyName are empty then Google didn't return
-        // with 'name'
+        // If both givenName and familyName are empty then Google didn't return with 'name'
         if (null == attributesToGet || attributesToGet.contains(GIVEN_NAME_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(GIVEN_NAME_ATTR,
                     null != user.getName() ? user.getName().getGivenName() : null));
@@ -1642,35 +1639,33 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(IS_ADMIN_ATTR, user.getIsAdmin()));
         }
         if (null == attributesToGet || attributesToGet.contains(IS_DELEGATED_ADMIN_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(IS_DELEGATED_ADMIN_ATTR, user
-                    .getIsDelegatedAdmin()));
+            builder.addAttribute(AttributeBuilder.build(IS_DELEGATED_ADMIN_ATTR, user.getIsDelegatedAdmin()));
         }
-        if (null == attributesToGet || attributesToGet.contains(LAST_LOGIN_TIME_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(LAST_LOGIN_TIME_ATTR, user
-                    .getLastLoginTime().toString()));
+        if ((null == attributesToGet || attributesToGet.contains(LAST_LOGIN_TIME_ATTR))
+                && user.getLastLoginTime() != null) {
+
+            builder.addAttribute(AttributeBuilder.build(LAST_LOGIN_TIME_ATTR, user.getLastLoginTime().toString()));
         }
-        if (null == attributesToGet || attributesToGet.contains(CREATION_TIME_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(CREATION_TIME_ATTR, user.getCreationTime()
-                    .toString()));
+        if ((null == attributesToGet || attributesToGet.contains(CREATION_TIME_ATTR))
+                && user.getCreationTime() != null) {
+
+            builder.addAttribute(AttributeBuilder.build(CREATION_TIME_ATTR, user.getCreationTime().toString()));
         }
         if (null == attributesToGet || attributesToGet.contains(AGREED_TO_TERMS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(AGREED_TO_TERMS_ATTR, user
-                    .getAgreedToTerms()));
+            builder.addAttribute(AttributeBuilder.build(AGREED_TO_TERMS_ATTR, user.getAgreedToTerms()));
         }
         if (null == attributesToGet || attributesToGet.contains(SUSPENDED_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(SUSPENDED_ATTR, user.getSuspended()));
         }
         if (null == attributesToGet || attributesToGet.contains(SUSPENSION_REASON_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(SUSPENSION_REASON_ATTR, user
-                    .getSuspensionReason()));
+            builder.addAttribute(AttributeBuilder.build(SUSPENSION_REASON_ATTR, user.getSuspensionReason()));
         }
         if (null == attributesToGet || attributesToGet.contains(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, user
-                    .getChangePasswordAtNextLogin()));
+            builder.addAttribute(
+                    AttributeBuilder.build(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, user.getChangePasswordAtNextLogin()));
         }
         if (null == attributesToGet || attributesToGet.contains(IP_WHITELISTED_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(IP_WHITELISTED_ATTR, user
-                    .getIpWhitelisted()));
+            builder.addAttribute(AttributeBuilder.build(IP_WHITELISTED_ATTR, user.getIpWhitelisted()));
         }
         if (null == attributesToGet || attributesToGet.contains(IMS_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(IMS_ATTR, (Collection) user.getIms()));
@@ -1679,20 +1674,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(EMAILS_ATTR, (Collection) user.getEmails()));
         }
         if (null == attributesToGet || attributesToGet.contains(EXTERNAL_IDS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(EXTERNAL_IDS_ATTR, (Collection) user
-                    .getExternalIds()));
+            builder.addAttribute(AttributeBuilder.build(EXTERNAL_IDS_ATTR, (Collection) user.getExternalIds()));
         }
         if (null == attributesToGet || attributesToGet.contains(RELATIONS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(RELATIONS_ATTR, (Collection) user
-                    .getRelations()));
+            builder.addAttribute(AttributeBuilder.build(RELATIONS_ATTR, (Collection) user.getRelations()));
         }
         if (null == attributesToGet || attributesToGet.contains(ADDRESSES_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(ADDRESSES_ATTR, (Collection) user
-                    .getAddresses()));
+            builder.addAttribute(AttributeBuilder.build(ADDRESSES_ATTR, (Collection) user.getAddresses()));
         }
         if (null == attributesToGet || attributesToGet.contains(ORGANIZATIONS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(ORGANIZATIONS_ATTR, (Collection) user
-                    .getOrganizations()));
+            builder.addAttribute(AttributeBuilder.build(ORGANIZATIONS_ATTR, (Collection) user.getOrganizations()));
         }
         if (null == attributesToGet || attributesToGet.contains(PHONES_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(PHONES_ATTR, (Collection) user.getPhones()));
@@ -1702,8 +1693,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
 
         if (null == attributesToGet || attributesToGet.contains(NON_EDITABLE_ALIASES_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(NON_EDITABLE_ALIASES_ATTR, user
-                    .getNonEditableAliases()));
+            builder.addAttribute(AttributeBuilder.build(NON_EDITABLE_ALIASES_ATTR, user.getNonEditableAliases()));
         }
 
         if (null == attributesToGet || attributesToGet.contains(CUSTOMER_ID_ATTR)) {
@@ -1713,17 +1703,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(ORG_UNIT_PATH_ATTR, user.getOrgUnitPath()));
         }
         if (null == attributesToGet || attributesToGet.contains(IS_MAILBOX_SETUP_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(IS_MAILBOX_SETUP_ATTR, user
-                    .getIsMailboxSetup()));
+            builder.addAttribute(AttributeBuilder.build(IS_MAILBOX_SETUP_ATTR, user.getIsMailboxSetup()));
         }
         if (null == attributesToGet
                 || attributesToGet.contains(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR, user
-                    .getIncludeInGlobalAddressList()));
+            builder.addAttribute(
+                    AttributeBuilder.build(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR, user.getIncludeInGlobalAddressList()));
         }
         if (null == attributesToGet || attributesToGet.contains(THUMBNAIL_PHOTO_URL_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(THUMBNAIL_PHOTO_URL_ATTR, user
-                    .getThumbnailPhotoUrl()));
+            builder.addAttribute(
+                    AttributeBuilder.build(THUMBNAIL_PHOTO_URL_ATTR, user.getThumbnailPhotoUrl()));
         }
         if (null == attributesToGet || attributesToGet.contains(DELETION_TIME_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(DELETION_TIME_ATTR, null != user
@@ -1732,15 +1721,18 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
         // Expensive to get
         if (null != attributesToGet && attributesToGet.contains(PredefinedAttributes.GROUPS_NAME)) {
-            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.GROUPS_NAME,
-                    listGroups(service, user.getId())));
+            builder.addAttribute(
+                    AttributeBuilder.build(PredefinedAttributes.GROUPS_NAME, listGroups(service, user.getId())));
         }
 
         return builder.build();
     }
 
-    protected ConnectorObject fromGroup(Group group, Set<String> attributesToGet,
-            Directory.Members service) {
+    protected ConnectorObject fromGroup(
+            final Group group,
+            final Set<String> attributesToGet,
+            final Directory.Members service) {
+
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(ObjectClass.GROUP);
 
@@ -1756,30 +1748,25 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(NAME_ATTR, group.getName()));
         }
         if (null == attributesToGet || attributesToGet.contains(PredefinedAttributes.DESCRIPTION)) {
-            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.DESCRIPTION, group
-                    .getDescription()));
+            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.DESCRIPTION, group.getDescription()));
         }
 
         if (null == attributesToGet || attributesToGet.contains(ADMIN_CREATED_ATTR)) {
-            builder.addAttribute(AttributeBuilder
-                    .build(ADMIN_CREATED_ATTR, group.getAdminCreated()));
+            builder.addAttribute(AttributeBuilder.build(ADMIN_CREATED_ATTR, group.getAdminCreated()));
         }
         if (null == attributesToGet || attributesToGet.contains(ALIASES_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(ALIASES_ATTR, group.getAliases()));
         }
         if (null == attributesToGet || attributesToGet.contains(NON_EDITABLE_ALIASES_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(NON_EDITABLE_ALIASES_ATTR, group
-                    .getNonEditableAliases()));
+            builder.addAttribute(AttributeBuilder.build(NON_EDITABLE_ALIASES_ATTR, group.getNonEditableAliases()));
         }
         if (null == attributesToGet || attributesToGet.contains(DIRECT_MEMBERS_COUNT_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(DIRECT_MEMBERS_COUNT_ATTR, group
-                    .getDirectMembersCount()));
+            builder.addAttribute(AttributeBuilder.build(DIRECT_MEMBERS_COUNT_ATTR, group.getDirectMembersCount()));
         }
 
         // Expensive to get
         if (null != attributesToGet && attributesToGet.contains(MEMBERS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(MEMBERS_ATTR, listMembers(service, group
-                    .getId(), null)));
+            builder.addAttribute(AttributeBuilder.build(MEMBERS_ATTR, listMembers(service, group.getId(), null)));
         }
 
         return builder.build();
@@ -1825,8 +1812,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             Directory.Groups.List request = service.list();
             request.setUserKey(userKey);
             request.setFields("groups/email");
-            //400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey combination allowed.
-            //request.setCustomer(MY_CUSTOMER_ID);
+            // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey combination 
+            // allowed. request.setCustomer(MY_CUSTOMER_ID);
             request.setDomain(configuration.getDomain());
 
             String nextPageToken;
@@ -1862,6 +1849,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
             G request, RequestResultHandler<G, T, R> handler, int retry) {
+
         try {
             if (retry >= 0) {
                 long sleep = (long) ((1000 * Math.pow(2, retry)) + nextLong(1000));
@@ -1937,7 +1925,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     private static final Random RANDOM = new Random();
 
-    long nextLong(long n) {
+    private static long nextLong(long n) {
         long bits, val;
         do {
             bits = (RANDOM.nextLong() << 1) >>> 1;

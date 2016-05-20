@@ -38,6 +38,7 @@ import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
 import org.identityconnectors.framework.common.objects.Name;
+import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.OperationalAttributes;
@@ -76,70 +77,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
      */
     private static final Log LOG = Log.getLog(UserHandler.class);
 
-    public static final String ID_ETAG = "id,etag";
-
-    public static final String NAME = "name";
-
-    public static final String ADMIN_CREATED_ATTR = "adminCreated";
-
-    public static final String NON_EDITABLE_ALIASES_ATTR = "nonEditableAliases";
-
-    public static final String DIRECT_MEMBERS_COUNT_ATTR = "directMembersCount";
-
-    public static final String MY_CUSTOMER_ID = "my_customer";
-
-    public static final String SUSPENDED_ATTR = "suspended";
-
-    public static final String CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR = "changePasswordAtNextLogin";
-
-    public static final String IP_WHITELISTED_ATTR = "ipWhitelisted";
-
-    public static final String ORG_UNIT_PATH_ATTR = "orgUnitPath";
-
-    public static final String INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR = "includeInGlobalAddressList";
-
-    public static final String IMS_ATTR = "ims";
-
-    public static final String EMAILS_ATTR = "emails";
-
-    public static final String EXTERNAL_IDS_ATTR = "externalIds";
-
-    public static final String RELATIONS_ATTR = "relations";
-
-    public static final String ADDRESSES_ATTR = "addresses";
-
-    public static final String ORGANIZATIONS_ATTR = "organizations";
-
-    public static final String PHONES_ATTR = "phones";
-
-    public static final String GIVEN_NAME_ATTR = "givenName";
-
-    public static final String FAMILY_NAME_ATTR = "familyName";
-
-    public static final String FULL_NAME_ATTR = "fullName";
-
-    public static final String IS_ADMIN_ATTR = "isAdmin";
-
-    public static final String IS_DELEGATED_ADMIN_ATTR = "isDelegatedAdmin";
-
-    public static final String LAST_LOGIN_TIME_ATTR = "lastLoginTime";
-
-    public static final String CREATION_TIME_ATTR = "creationTime";
-
-    public static final String AGREED_TO_TERMS_ATTR = "agreedToTerms";
-
-    public static final String SUSPENSION_REASON_ATTR = "suspensionReason";
-
-    public static final String ALIASES_ATTR = "aliases";
-
-    public static final String CUSTOMER_ID_ATTR = "customerId";
-
-    public static final String IS_MAILBOX_SETUP_ATTR = "isMailboxSetup";
-
-    public static final String THUMBNAIL_PHOTO_URL_ATTR = "thumbnailPhotoUrl";
-
-    public static final String DELETION_TIME_ATTR = "deletionTime";
-
     private static final Map<String, String> NAME_DICTIONARY;
 
     private static final Set<String> S;
@@ -148,13 +85,13 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
     static {
         Map<String, String> dictionary = CollectionUtil.newCaseInsensitiveMap();
-        dictionary.put(NAME, NAME);
-        dictionary.put("email", "email");
-        dictionary.put(Name.NAME, "email");
-        dictionary.put(GIVEN_NAME_ATTR, GIVEN_NAME_ATTR);
-        dictionary.put(FAMILY_NAME_ATTR, FAMILY_NAME_ATTR);
-        dictionary.put(IS_ADMIN_ATTR, IS_ADMIN_ATTR);
-        dictionary.put(IS_DELEGATED_ADMIN_ATTR, IS_DELEGATED_ADMIN_ATTR);
+        dictionary.put(Uid.NAME, Uid.NAME);
+        dictionary.put(GoogleAppsConnector.EMAIL_ATTR, GoogleAppsConnector.EMAIL_ATTR);
+        dictionary.put(Name.NAME, GoogleAppsConnector.EMAIL_ATTR);
+        dictionary.put(GoogleAppsConnector.GIVEN_NAME_ATTR, GoogleAppsConnector.GIVEN_NAME_ATTR);
+        dictionary.put(GoogleAppsConnector.FAMILY_NAME_ATTR, GoogleAppsConnector.FAMILY_NAME_ATTR);
+        dictionary.put(GoogleAppsConnector.IS_ADMIN_ATTR, GoogleAppsConnector.IS_ADMIN_ATTR);
+        dictionary.put(GoogleAppsConnector.IS_DELEGATED_ADMIN_ATTR, GoogleAppsConnector.IS_DELEGATED_ADMIN_ATTR);
         dictionary.put("isSuspended", "isSuspended");
         dictionary.put("im", "im");
         dictionary.put("externalId", "externalId");
@@ -182,7 +119,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         NAME_DICTIONARY = dictionary;
 
         Set<String> s = CollectionUtil.newCaseInsensitiveSet();
-        s.add(NAME);
+        s.add(Name.NAME);
         s.add("email");
         s.add("givenName");
         s.add("familyName");
@@ -248,8 +185,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
      * @param filedName
      * @return
      */
-    protected StringBuilder getStringBuilder(Attribute attribute, char operator, Character postfix,
-            String filedName) {
+    protected StringBuilder getStringBuilder(Attribute attribute, char operator, Character postfix, String filedName) {
         StringBuilder builder = new StringBuilder();
         builder.append(filedName).append(operator);
         String stringValue = AttributeUtil.getAsStringValue(attribute);
@@ -479,73 +415,74 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         // primaryEmail
         builder.addAttributeInfo(Name.INFO);
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GIVEN_NAME_ATTR).setRequired(true)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.GIVEN_NAME_ATTR).setRequired(true)
                 .build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(FAMILY_NAME_ATTR).setRequired(true)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.FAMILY_NAME_ATTR).setRequired(true)
                 .build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(FULL_NAME_ATTR).setUpdateable(false)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.FULL_NAME_ATTR).setUpdateable(false)
                 .setCreateable(false).build());
 
         // Virtual attribute Modify supported
-        builder.addAttributeInfo(AttributeInfoBuilder.build(IS_ADMIN_ATTR, Boolean.TYPE));
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.IS_ADMIN_ATTR, Boolean.TYPE));
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(IS_DELEGATED_ADMIN_ATTR, Boolean.TYPE)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.IS_DELEGATED_ADMIN_ATTR, Boolean.TYPE)
                 .setUpdateable(false).setCreateable(false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(LAST_LOGIN_TIME_ATTR).setUpdateable(
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.LAST_LOGIN_TIME_ATTR).setUpdateable(
                 false).setCreateable(false).setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(CREATION_TIME_ATTR).setUpdateable(
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.CREATION_TIME_ATTR).setUpdateable(
                 false).setCreateable(false).setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(AGREED_TO_TERMS_ATTR, Boolean.TYPE)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.AGREED_TO_TERMS_ATTR, Boolean.TYPE)
                 .setUpdateable(false).setCreateable(false).build());
 
         builder.addAttributeInfo(AttributeInfoBuilder.define(OperationalAttributes.PASSWORD_NAME,
                 GuardedString.class).setRequired(true).setReadable(false).setReturnedByDefault(
                 false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(SUSPENDED_ATTR, Boolean.class));
-        builder.addAttributeInfo(AttributeInfoBuilder.define(SUSPENSION_REASON_ATTR).setUpdateable(
-                false).setCreateable(false).build());
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.SUSPENDED_ATTR, Boolean.class));
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.SUSPENSION_REASON_ATTR).
+                setUpdateable(false).setCreateable(false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR,
-                Boolean.class));
-        builder.addAttributeInfo(AttributeInfoBuilder.build(IP_WHITELISTED_ATTR, Boolean.class));
+        builder.addAttributeInfo(AttributeInfoBuilder.build(
+                GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, Boolean.class));
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.IP_WHITELISTED_ATTR, Boolean.class));
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(IMS_ATTR, Map.class).setMultiValued(
-                true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(EMAILS_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.IMS_ATTR, Map.class).
+                setMultiValued(true).build());
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.EMAILS_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(EXTERNAL_IDS_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.EXTERNAL_IDS_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(RELATIONS_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.RELATIONS_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(ADDRESSES_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ADDRESSES_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(ORGANIZATIONS_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ORGANIZATIONS_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(PHONES_ATTR, Map.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PHONES_ATTR, Map.class)
                 .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(ALIASES_ATTR).setUpdateable(false)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ALIASES_ATTR).setUpdateable(false)
                 .setCreateable(false).setMultiValued(true).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(NON_EDITABLE_ALIASES_ATTR)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.NON_EDITABLE_ALIASES_ATTR)
                 .setUpdateable(false).setCreateable(false).setMultiValued(true).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(CUSTOMER_ID_ATTR).setUpdateable(false)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.CUSTOMER_ID_ATTR).setUpdateable(false)
                 .setCreateable(false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(ORG_UNIT_PATH_ATTR));
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.ORG_UNIT_PATH_ATTR));
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(IS_MAILBOX_SETUP_ATTR, Boolean.class)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.IS_MAILBOX_SETUP_ATTR, Boolean.class)
                 .setUpdateable(false).setCreateable(false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR,
-                Boolean.class));
+        builder.addAttributeInfo(
+                AttributeInfoBuilder.build(GoogleAppsConnector.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR, Boolean.class));
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(THUMBNAIL_PHOTO_URL_ATTR)
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.THUMBNAIL_PHOTO_URL_ATTR)
                 .setUpdateable(false).setCreateable(false).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(DELETION_TIME_ATTR).setUpdateable(
-                false).setCreateable(false).build());
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.DELETION_TIME_ATTR).
+                setUpdateable(
+                        false).setCreateable(false).build());
 
         // Virtual Attribute
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PHOTO_ATTR, byte[].class).
@@ -570,41 +507,44 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         user.setName(new UserName());
         // givenName The user's first name. Required when creating a user
         // account.
-        String givenName = attributes.findString(GIVEN_NAME_ATTR);
+        String givenName = attributes.findString(GoogleAppsConnector.GIVEN_NAME_ATTR);
         if (StringUtil.isNotBlank(givenName)) {
             user.getName().setGivenName(givenName);
         } else {
             throw new InvalidAttributeValueException(
-                    "Missing required attribute 'givenName'. The user's first name. Required when creating a user account.");
+                    "Missing required attribute 'givenName'."
+                    + "The user's first name. Required when creating a user account.");
         }
 
-        // familyName The user's last name. Required when creating a user
-        // account.
-        String familyName = attributes.findString(FAMILY_NAME_ATTR);
+        // familyName The user's last name. Required when creating a user account.
+        String familyName = attributes.findString(GoogleAppsConnector.FAMILY_NAME_ATTR);
         if (StringUtil.isNotBlank(familyName)) {
             user.getName().setFamilyName(familyName);
         } else {
             throw new InvalidAttributeValueException(
-                    "Missing required attribute 'familyName'. The user's last name. Required when creating a user account.");
+                    "Missing required attribute 'familyName'."
+                    + "The user's last name. Required when creating a user account.");
         }
 
         // Optional
-        user.setIms(attributes.findList(IMS_ATTR));
-        user.setEmails(attributes.findList(EMAILS_ATTR));
-        user.setExternalIds(attributes.findList(EXTERNAL_IDS_ATTR));
-        user.setRelations(attributes.findList(RELATIONS_ATTR));
-        user.setAddresses(attributes.findList(ADDRESSES_ATTR));
-        user.setOrganizations(attributes.findList(ORGANIZATIONS_ATTR));
-        user.setPhones(attributes.findList(PHONES_ATTR));
+        user.setIms(attributes.findList(GoogleAppsConnector.IMS_ATTR));
+        user.setEmails(attributes.findList(GoogleAppsConnector.EMAILS_ATTR));
+        user.setExternalIds(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR));
+        user.setRelations(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR));
+        user.setAddresses(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR));
+        user.setOrganizations(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR));
+        user.setPhones(attributes.findList(GoogleAppsConnector.PHONES_ATTR));
 
-        user.setSuspended(attributes.findBoolean(SUSPENDED_ATTR));
-        user.setChangePasswordAtNextLogin(attributes.findBoolean(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
-        user.setIpWhitelisted(attributes.findBoolean(IP_WHITELISTED_ATTR));
-        user.setOrgUnitPath(attributes.findString(ORG_UNIT_PATH_ATTR));
-        user.setIncludeInGlobalAddressList(attributes.findBoolean(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR));
+        user.setSuspended(attributes.findBoolean(GoogleAppsConnector.SUSPENDED_ATTR));
+        user.setChangePasswordAtNextLogin(
+                attributes.findBoolean(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
+        user.setIpWhitelisted(attributes.findBoolean(GoogleAppsConnector.IP_WHITELISTED_ATTR));
+        user.setOrgUnitPath(attributes.findString(GoogleAppsConnector.ORG_UNIT_PATH_ATTR));
+        user.setIncludeInGlobalAddressList(
+                attributes.findBoolean(GoogleAppsConnector.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR));
 
         try {
-            return users.insert(user).setFields(ID_ETAG);
+            return users.insert(user).setFields(GoogleAppsConnector.ID_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
@@ -622,7 +562,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setPrimaryEmail(email.getNameValue());
         }
 
-        Attribute givenName = attributes.find(GIVEN_NAME_ATTR);
+        Attribute givenName = attributes.find(GoogleAppsConnector.GIVEN_NAME_ATTR);
         if (null != givenName) {
             String stringValue = GoogleAppsUtil.getStringValueWithDefault(givenName, null);
             if (null != stringValue) {
@@ -634,7 +574,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        Attribute familyName = attributes.find(FAMILY_NAME_ATTR);
+        Attribute familyName = attributes.find(GoogleAppsConnector.FAMILY_NAME_ATTR);
         if (null != familyName) {
             String stringValue = GoogleAppsUtil.getStringValueWithDefault(familyName, null);
             if (null != stringValue) {
@@ -656,7 +596,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setPassword(SecurityUtil.decrypt(password));
         }
 
-        Attribute suspended = attributes.find(SUSPENDED_ATTR);
+        Attribute suspended = attributes.find(GoogleAppsConnector.SUSPENDED_ATTR);
         if (null != suspended) {
             Boolean booleanValue = GoogleAppsUtil.getBooleanValueWithDefault(suspended, null);
             if (null != booleanValue) {
@@ -667,7 +607,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        Attribute changePasswordAtNextLogin = attributes.find(CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR);
+        Attribute changePasswordAtNextLogin = attributes.find(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR);
         if (null != changePasswordAtNextLogin) {
             Boolean booleanValue =
                     GoogleAppsUtil.getBooleanValueWithDefault(changePasswordAtNextLogin, null);
@@ -679,7 +619,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        Attribute ipWhitelisted = attributes.find(IP_WHITELISTED_ATTR);
+        Attribute ipWhitelisted = attributes.find(GoogleAppsConnector.IP_WHITELISTED_ATTR);
         if (null != ipWhitelisted) {
             Boolean booleanValue = GoogleAppsUtil.getBooleanValueWithDefault(ipWhitelisted, null);
             if (null != booleanValue) {
@@ -691,7 +631,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         // Maps
-        Attribute ims = attributes.find(IMS_ATTR);
+        Attribute ims = attributes.find(GoogleAppsConnector.IMS_ATTR);
         if (null != ims) {
             if (null == content) {
                 content = new User();
@@ -699,7 +639,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setIms(ims.getValue());
         }
 
-        Attribute emails = attributes.find(EMAILS_ATTR);
+        Attribute emails = attributes.find(GoogleAppsConnector.EMAILS_ATTR);
         if (null != emails) {
             if (null == content) {
                 content = new User();
@@ -707,7 +647,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setEmails(emails.getValue());
         }
 
-        Attribute externalIds = attributes.find(EXTERNAL_IDS_ATTR);
+        Attribute externalIds = attributes.find(GoogleAppsConnector.EXTERNAL_IDS_ATTR);
         if (null != externalIds) {
             if (null == content) {
                 content = new User();
@@ -715,7 +655,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setExternalIds(externalIds.getValue());
         }
 
-        Attribute relations = attributes.find(RELATIONS_ATTR);
+        Attribute relations = attributes.find(GoogleAppsConnector.RELATIONS_ATTR);
         if (null != relations) {
             if (null == content) {
                 content = new User();
@@ -723,7 +663,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setRelations(relations.getValue());
         }
 
-        Attribute addresses = attributes.find(ADDRESSES_ATTR);
+        Attribute addresses = attributes.find(GoogleAppsConnector.ADDRESSES_ATTR);
         if (null != addresses) {
             if (null == content) {
                 content = new User();
@@ -731,7 +671,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setAddresses(addresses.getValue());
         }
 
-        Attribute organizations = attributes.find(ORGANIZATIONS_ATTR);
+        Attribute organizations = attributes.find(GoogleAppsConnector.ORGANIZATIONS_ATTR);
         if (null != organizations) {
             if (null == content) {
                 content = new User();
@@ -739,7 +679,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setOrganizations(organizations.getValue());
         }
 
-        Attribute phones = attributes.find(PHONES_ATTR);
+        Attribute phones = attributes.find(GoogleAppsConnector.PHONES_ATTR);
         if (null != phones) {
             if (null == content) {
                 content = new User();
@@ -747,7 +687,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setPhones(phones.getValue());
         }
 
-        Attribute orgUnitPath = attributes.find(ORG_UNIT_PATH_ATTR);
+        Attribute orgUnitPath = attributes.find(GoogleAppsConnector.ORG_UNIT_PATH_ATTR);
         if (null != orgUnitPath) {
             String stringValue = GoogleAppsUtil.getStringValueWithDefault(orgUnitPath, null);
             if (null != stringValue) {
@@ -758,7 +698,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        Attribute includeInGlobalAddressList = attributes.find(INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR);
+        Attribute includeInGlobalAddressList = attributes.find(GoogleAppsConnector.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR);
         if (null != includeInGlobalAddressList) {
             Boolean booleanValue =
                     GoogleAppsUtil.getBooleanValueWithDefault(includeInGlobalAddressList, null);
@@ -774,7 +714,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             return null;
         }
         try {
-            return users.patch(groupKey, content).setFields(ID_ETAG);
+            return users.patch(groupKey, content).setFields(GoogleAppsConnector.ID_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Patch");
@@ -814,7 +754,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         Alias content = new Alias();
         content.setAlias(alias);
         try {
-            return service.insert(userKey, content).setFields(ID_ETAG);
+            return service.insert(userKey, content).setFields(GoogleAppsConnector.ID_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Aliases#Insert");
             throw ConnectorException.wrap(e);
