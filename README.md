@@ -15,7 +15,7 @@ The GoogleApps bundle is part of the [ConnId](http://connid.tirasa.net) project.
 </dependency>
 ```
 
-where `connid.googleapps.version` is one of [available](http://repo1.maven.org/maven2/org/connid/bundles/org.connid.bundles.googleapps/).
+where `connid.googleapps.version` is one of [available](http://repo1.maven.org/maven2/net/tirasa/connid/bundles/net.tirasa.connid.bundles.googleapps/).
 
 ### Downloads
 
