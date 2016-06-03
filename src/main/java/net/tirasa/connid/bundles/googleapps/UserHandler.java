@@ -447,20 +447,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, Boolean.class));
         builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.IP_WHITELISTED_ATTR, Boolean.class));
 
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.IMS_ATTR, Map.class).
-                setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.EMAILS_ATTR, Map.class)
-                .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.EXTERNAL_IDS_ATTR, Map.class)
-                .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.RELATIONS_ATTR, Map.class)
-                .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ADDRESSES_ATTR, Map.class)
-                .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ORGANIZATIONS_ATTR, Map.class)
-                .setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.PHONES_ATTR, Map.class)
-                .setMultiValued(true).build());
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ALIASES_ATTR).setUpdateable(false)
                 .setCreateable(false).setMultiValued(true).build());
 
@@ -527,14 +513,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         // Optional
-        user.setIms(attributes.findList(GoogleAppsConnector.IMS_ATTR));
-        user.setEmails(attributes.findList(GoogleAppsConnector.EMAILS_ATTR));
-        user.setExternalIds(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR));
-        user.setRelations(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR));
-        user.setAddresses(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR));
-        user.setOrganizations(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR));
-        user.setPhones(attributes.findList(GoogleAppsConnector.PHONES_ATTR));
-
         user.setSuspended(attributes.findBoolean(GoogleAppsConnector.SUSPENDED_ATTR));
         user.setChangePasswordAtNextLogin(
                 attributes.findBoolean(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
@@ -630,62 +608,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        // Maps
-        Attribute ims = attributes.find(GoogleAppsConnector.IMS_ATTR);
-        if (null != ims) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setIms(ims.getValue());
-        }
-
-        Attribute emails = attributes.find(GoogleAppsConnector.EMAILS_ATTR);
-        if (null != emails) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setEmails(emails.getValue());
-        }
-
-        Attribute externalIds = attributes.find(GoogleAppsConnector.EXTERNAL_IDS_ATTR);
-        if (null != externalIds) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setExternalIds(externalIds.getValue());
-        }
-
-        Attribute relations = attributes.find(GoogleAppsConnector.RELATIONS_ATTR);
-        if (null != relations) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setRelations(relations.getValue());
-        }
-
-        Attribute addresses = attributes.find(GoogleAppsConnector.ADDRESSES_ATTR);
-        if (null != addresses) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setAddresses(addresses.getValue());
-        }
-
-        Attribute organizations = attributes.find(GoogleAppsConnector.ORGANIZATIONS_ATTR);
-        if (null != organizations) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setOrganizations(organizations.getValue());
-        }
-
-        Attribute phones = attributes.find(GoogleAppsConnector.PHONES_ATTR);
-        if (null != phones) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setPhones(phones.getValue());
-        }
+        // Maps --> Removed
 
         Attribute orgUnitPath = attributes.find(GoogleAppsConnector.ORG_UNIT_PATH_ATTR);
         if (null != orgUnitPath) {

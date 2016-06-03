@@ -147,20 +147,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     public static final String INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR = "includeInGlobalAddressList";
 
-    public static final String IMS_ATTR = "ims";
-
-    public static final String EMAILS_ATTR = "emails";
-
-    public static final String EXTERNAL_IDS_ATTR = "externalIds";
-
-    public static final String RELATIONS_ATTR = "relations";
-
-    public static final String ADDRESSES_ATTR = "addresses";
-
-    public static final String ORGANIZATIONS_ATTR = "organizations";
-
-    public static final String PHONES_ATTR = "phones";
-
     public static final String GIVEN_NAME_ATTR = "givenName";
 
     public static final String FAMILY_NAME_ATTR = "familyName";
@@ -427,8 +413,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 final Directory.Members membersService = configuration.getDirectory().members();
                 for (Object member : members) {
                     if (member instanceof Map) {
-                        String email = (String) ((Map) member).get(EMAIL_ATTR);
-                        String role = (String) ((Map) member).get(ROLE_ATTR);
+                        String email = (String) ((Map<?,?>) member).get(EMAIL_ATTR);
+                        String role = (String) ((Map<?,?>) member).get(ROLE_ATTR);
 
                         String id = execute(GroupHandler.createMember(membersService, uid.getUidValue(), email, role),
                                 new RequestResultHandler<Directory.Members.Insert, Member, String>() {
@@ -1462,11 +1448,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     for (Object member : members.getValue()) {
                         if (member instanceof Map) {
 
-                            String email = (String) ((Map) member).get(EMAIL_ATTR);
+                            String email = (String) ((Map<?,?>) member).get(EMAIL_ATTR);
                             if (null == email) {
                                 continue;
                             }
-                            String role = (String) ((Map) member).get(ROLE_ATTR);
+                            String role = (String) ((Map<?,?>) member).get(ROLE_ATTR);
                             if (null == role) {
                                 role = "MEMBER";
                             }
@@ -1666,27 +1652,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
         if (null == attributesToGet || attributesToGet.contains(IP_WHITELISTED_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(IP_WHITELISTED_ATTR, user.getIpWhitelisted()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(IMS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(IMS_ATTR, (Collection) user.getIms()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(EMAILS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(EMAILS_ATTR, (Collection) user.getEmails()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(EXTERNAL_IDS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(EXTERNAL_IDS_ATTR, (Collection) user.getExternalIds()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(RELATIONS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(RELATIONS_ATTR, (Collection) user.getRelations()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(ADDRESSES_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(ADDRESSES_ATTR, (Collection) user.getAddresses()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(ORGANIZATIONS_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(ORGANIZATIONS_ATTR, (Collection) user.getOrganizations()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(PHONES_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(PHONES_ATTR, (Collection) user.getPhones()));
         }
         if (null == attributesToGet || attributesToGet.contains(ALIASES_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(ALIASES_ATTR, user.getAliases()));
