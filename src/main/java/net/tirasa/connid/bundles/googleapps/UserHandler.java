@@ -513,7 +513,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         // Optional
-        user.setSuspended(attributes.findBoolean(GoogleAppsConnector.SUSPENDED_ATTR));
+        user.setSuspended(new Boolean(attributes.findString(GoogleAppsConnector.SUSPENDED_ATTR)));
         user.setChangePasswordAtNextLogin(
                 attributes.findBoolean(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
         user.setIpWhitelisted(attributes.findBoolean(GoogleAppsConnector.IP_WHITELISTED_ATTR));
@@ -576,7 +576,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
         Attribute suspended = attributes.find(GoogleAppsConnector.SUSPENDED_ATTR);
         if (null != suspended) {
-            Boolean booleanValue = GoogleAppsUtil.getBooleanValueWithDefault(suspended, null);
+            Boolean booleanValue = new Boolean(attributes.findString(GoogleAppsConnector.SUSPENDED_ATTR));
             if (null != booleanValue) {
                 if (null == content) {
                     content = new User();
