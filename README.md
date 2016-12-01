@@ -3,6 +3,11 @@ ConnIdGoogleAppsBundle
 
 The GoogleApps bundle is part of the [ConnId](http://connid.tirasa.net) project.
 
+<a href="https://travis-ci.org/Tirasa/ConnIdGoogleAppsBundle"><img src="https://api.travis-ci.org/Tirasa/ConnIdGoogleAppsBundle.png"/></a>
+<a href="https://maven-badges.herokuapp.com/maven-central/net.tirasa.connid.bundles/net.tirasa.connid.bundles.googleapps">
+  <img src="https://maven-badges.herokuapp.com/maven-central/net.tirasa.connid.bundles/net.tirasa.connid.bundles.googleapps/badge.svg"/>
+</a>
+
 ## How to get it
 
 ### Maven
@@ -25,4 +30,3 @@ Available from [releases](https://github.com/Tirasa/ConnIdGoogleAppsBundle/relea
 
  * [wiki](https://connid.atlassian.net/wiki/display/BASE/Google+Apps)
  * [issues](https://connid.atlassian.net/browse/GOOGLEAPPS)
- * <a href="https://travis-ci.org/Tirasa/ConnIdGoogleAppsBundle"><img src="https://api.travis-ci.org/Tirasa/ConnIdGoogleAppsBundle.png"/></a>
