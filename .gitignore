@@ -1,1 +1,9 @@
+.externalToolBuilders
+.settings
 target
+src/test
+
+maven-eclipse.xml
+.classpath
+.project
+.DS_Store
