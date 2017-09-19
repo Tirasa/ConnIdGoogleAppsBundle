@@ -1599,8 +1599,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.setUid(user.getId());
         }
         builder.setName(user.getPrimaryEmail());
-        builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME,
-                user.getSuspended() == null || !user.getSuspended()));
+        if (user.getSuspended() != null) {
+            builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME, !user.getSuspended()));
+        }
 
         // Optional
         // If both givenName and familyName are empty then Google didn't return with 'name'
