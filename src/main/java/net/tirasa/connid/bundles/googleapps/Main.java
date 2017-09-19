@@ -27,8 +27,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +36,12 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.MemoryDataStoreFactory;
+import org.identityconnectors.common.CollectionUtil;
 
 /**
  * Class to represent a GoogleApps Connector Configuration Class.
@@ -75,7 +73,7 @@ public class Main {
     public static final java.lang.String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
-    private static final List<String> SCOPES = Arrays.asList(
+    private static final List<String> SCOPES = CollectionUtil.newList(
             ADMIN_DIRECTORY_GROUP,
             ADMIN_DIRECTORY_ORGUNIT,
             ADMIN_DIRECTORY_USER,
@@ -84,27 +82,14 @@ public class Main {
     /**
      * Global instance of the HTTP transport.
      */
-    private static final HttpTransport HTTP_TRANSPORT;
-
-    static {
-        HttpTransport t = null;
-        try {
-            t = GoogleNetHttpTransport.newTrustedTransport();
-        } catch (Exception e) {
-            try {
-                t = new NetHttpTransport.Builder().doNotValidateCertificate().build();
-            } catch (GeneralSecurityException e1) {
-            }
-        }
-        HTTP_TRANSPORT = t;
-    }
+    private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 
     /**
      * Global instance of the JSON factory.
      */
     private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         if (args.length == 1) {
             File clientJson = new File(args[0]);
             if (clientJson.isDirectory()) {
@@ -126,22 +111,19 @@ public class Main {
     }
 
     static Map<String, Object> getConfigurationMap(File clientJson) throws IOException, URISyntaxException {
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
 
-        GoogleClientSecrets clientSecrets =
-                GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
-
-        Credential credential =
-                new AuthorizationCodeInstalledApp(
-                        new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES).
+        Credential credential = new AuthorizationCodeInstalledApp(
+                new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES).
                         setAccessType("offline").setApprovalPrompt("force").
                         setDataStoreFactory(MemoryDataStoreFactory.getDefaultInstance()).build(),
-                        new AbstractPromptReceiver() {
+                new AbstractPromptReceiver() {
 
-                    @Override
-                    public String getRedirectUri() throws IOException {
-                        return GoogleOAuthConstants.OOB_REDIRECT_URI;
-                    }
-                }).authorize("user");
+            @Override
+            public String getRedirectUri() throws IOException {
+                return GoogleOAuthConstants.OOB_REDIRECT_URI;
+            }
+        }).authorize("user");
 
         Map<String, Object> configMap = new LinkedHashMap<String, Object>(3);
         configMap.put("clientId", clientSecrets.getDetails().getClientId());

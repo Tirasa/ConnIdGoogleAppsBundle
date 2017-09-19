@@ -51,6 +51,7 @@ import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
+import org.identityconnectors.framework.common.objects.OperationalAttributes;
 import org.identityconnectors.framework.common.objects.OperationOptionInfo;
 import org.identityconnectors.framework.common.objects.OperationOptionInfoBuilder;
 import org.identityconnectors.framework.common.objects.OperationOptions;
@@ -284,8 +285,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
      * {@inheritDoc}
      */
     @Override
-    public Uid create(final ObjectClass objectClass, final Set<Attribute> createAttributes,
+    public Uid create(
+            final ObjectClass objectClass,
+            final Set<Attribute> createAttributes,
             final OperationOptions options) {
+
         final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
@@ -302,8 +306,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             List<Object> aliases = accessor.findList(ALIASES_ATTR);
             if (null != aliases) {
-                final Directory.Users.Aliases aliasesService =
-                        configuration.getDirectory().users().aliases();
+                final Directory.Users.Aliases aliasesService = configuration.getDirectory().users().aliases();
                 for (Object member : aliases) {
                     if (member instanceof String) {
                         String id = execute(UserHandler.createUserAlias(aliasesService, uid.getUidValue(),
@@ -312,13 +315,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                             @Override
                             public String handleResult(
-                                    final Directory.Users.Aliases.Insert request,
-                                    final Alias value) {
-                                if (null != value) {
-                                    return value.getId();
-                                } else {
-                                    return null;
-                                }
+                                    final Directory.Users.Aliases.Insert request, final Alias value) {
+
+                                return value == null ? null : value.getId();
                             }
                         });
 
@@ -328,10 +327,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     } else if (null != member) {
                         // Delete user and Error or
                         RetryableException e =
-                                RetryableException.wrap("Invalid attribute value: "
-                                        + String.valueOf(member), uid);
-                        e.initCause(new InvalidAttributeValueException(
-                                "Attribute 'aliases' must be a String list"));
+                                RetryableException.wrap("Invalid attribute value: " + String.valueOf(member), uid);
+                        e.initCause(new InvalidAttributeValueException("Attribute 'aliases' must be a String list"));
                         throw e;
                     }
                 }
@@ -346,14 +343,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             new RequestResultHandler<Directory.Users.Photos.Update, UserPhoto, String>() {
 
                         @Override
-                        public String handleResult(
-                                final Directory.Users.Photos.Update request,
-                                final UserPhoto value) {
-                            if (null != value) {
-                                return value.getId();
-                            } else {
-                                return null;
-                            }
+                        public String handleResult(final Directory.Users.Photos.Update request, final UserPhoto value) {
+                            return value == null ? null : value.getId();
                         }
                     });
 
@@ -376,17 +367,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 try {
                     Boolean isAdminValue = AttributeUtil.getBooleanValue(isAdmin);
                     if (null != isAdminValue && isAdminValue) {
-
                         UserMakeAdmin content = new UserMakeAdmin();
                         content.setStatus(isAdminValue);
 
-                        execute(configuration.getDirectory().users().makeAdmin(uid.getUidValue(),
-                                content),
+                        execute(configuration.getDirectory().users().makeAdmin(uid.getUidValue(), content),
                                 new RequestResultHandler<Directory.Users.MakeAdmin, Void, Void>() {
 
                             @Override
-                            public Void handleResult(Directory.Users.MakeAdmin request,
-                                    Void value) {
+                            public Void handleResult(final Directory.Users.MakeAdmin request, final Void value) {
                                 return null;
                             }
                         });
@@ -435,11 +423,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                             @Override
                             public String handleResult(final Directory.Members.Insert request, final Member value) {
-                                if (null != value) {
-                                    return value.getEmail();
-                                } else {
-                                    return null;
-                                }
+
+                                return value == null ? null : value.getId();
                             }
                         });
 
@@ -449,10 +434,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     } else if (null != member) {
                         // Delete group and Error or
                         RetryableException e =
-                                RetryableException.wrap("Invalid attribute value: "
-                                        + String.valueOf(member), uid);
-                        e.initCause(new InvalidAttributeValueException(
-                                "Attribute 'members' must be a Map list"));
+                                RetryableException.wrap("Invalid attribute value: " + String.valueOf(member), uid);
+                        e.initCause(new InvalidAttributeValueException("Attribute 'members' must be a Map list"));
                         throw e;
                     }
                 }
@@ -505,8 +488,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         final Licensing.LicenseAssignments.Insert request,
                         final LicenseAssignment value) {
 
-                    LOG.ok("LicenseAssignment is Created:{0}/{1}/{2}", value
-                            .getProductId(), value.getSkuId(), value.getUserId());
+                    LOG.ok("LicenseAssignment is Created:{0}/{1}/{2}",
+                            value.getProductId(), value.getSkuId(), value.getUserId());
                     return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
                 }
             });
@@ -1027,7 +1010,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     } else if (StringUtil.isBlank(skuId)) {
                         Licensing.LicenseAssignments.ListForProduct r =
                                 configuration.getLicensing().licenseAssignments().
-                                listForProduct(productId, MY_CUSTOMER_ID);
+                                        listForProduct(productId, MY_CUSTOMER_ID);
 
                         if (options.getPageSize() != null && 0 < options.getPageSize()) {
                             r.setMaxResults(Long.valueOf(options.getPageSize()));
@@ -1038,7 +1021,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     } else {
                         Licensing.LicenseAssignments.ListForProductAndSku r =
                                 configuration.getLicensing().licenseAssignments().
-                                listForProductAndSku(productId, skuId, MY_CUSTOMER_ID);
+                                        listForProductAndSku(productId, skuId, MY_CUSTOMER_ID);
 
                         if (options.getPageSize() != null && 0 < options.getPageSize()) {
                             r.setMaxResults(Long.valueOf(options.getPageSize()));
@@ -1619,6 +1602,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.setUid(user.getId());
         }
         builder.setName(user.getPrimaryEmail());
+        builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME,
+                user.getSuspended() == null || user.getSuspended()));
 
         // Optional
         // If both givenName and familyName are empty then Google didn't return with 'name'

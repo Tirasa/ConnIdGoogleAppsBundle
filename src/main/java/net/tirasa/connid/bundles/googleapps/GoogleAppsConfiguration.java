@@ -23,7 +23,6 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
-import java.security.GeneralSecurityException;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.common.security.SecurityUtil;
@@ -31,11 +30,9 @@ import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.spi.AbstractConfiguration;
 import org.identityconnectors.framework.spi.ConfigurationProperty;
 import org.identityconnectors.framework.spi.StatefulConfiguration;
-import com.google.api.client.auth.oauth2.BearerToken;
 import com.google.api.client.auth.oauth2.ClientParametersAuthentication;
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -48,6 +45,16 @@ import com.google.api.services.licensing.Licensing;
  * parameters to initialize the GoogleApps Connector.
  */
 public class GoogleAppsConfiguration extends AbstractConfiguration implements StatefulConfiguration {
+
+    /**
+     * Global instance of the HTTP transport.
+     */
+    private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
+
+    /**
+     * Global instance of the JSON factory.
+     */
+    private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
     private String domain = null;
 
@@ -62,6 +69,12 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     private GuardedString clientSecret = null;
 
     private GuardedString refreshToken = null;
+
+    private Credential credential = null;
+
+    private Directory directory;
+
+    private Licensing licensing;
 
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
@@ -116,26 +129,23 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
             throw new IllegalArgumentException("Client Id cannot be null or empty.");
         }
         if (null == clientSecret) {
-            throw new IllegalArgumentException("Client Secret cannot be null or empty.");
+            throw new IllegalArgumentException("Client Secret cannot be null.");
         }
         if (null == refreshToken) {
-            throw new IllegalArgumentException("Refresh Token cannot be null or empty.");
+            throw new IllegalArgumentException("Refresh Token cannot be null.");
         }
     }
-
-    private Credential credential = null;
 
     public Credential getGoogleCredential() {
         synchronized (this) {
             if (null == credential) {
-                credential = new Credential.Builder(BearerToken.authorizationHeaderAccessMethod()).
+                credential = new GoogleCredential.Builder().
                         setTransport(HTTP_TRANSPORT).
                         setJsonFactory(JSON_FACTORY).
-                        setTokenServerEncodedUrl(GoogleOAuthConstants.TOKEN_SERVER_URL).
-                        setClientAuthentication(
-                                new ClientParametersAuthentication(getClientId(),
-                                        SecurityUtil.decrypt(getClientSecret())))
-                        .build();
+                        setClientAuthentication(new ClientParametersAuthentication(
+                                getClientId(),
+                                SecurityUtil.decrypt(getClientSecret()))).
+                        build();
 
                 getRefreshToken().access(new GuardedString.Accessor() {
 
@@ -158,14 +168,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     @Override
     public void release() {
-
     }
-
-    /** Global instance of the HTTP transport. */
-    private static final HttpTransport HTTP_TRANSPORT;
-
-    /** Global instance of the JSON factory. */
-    private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
     public Directory getDirectory() {
         getGoogleCredential();
@@ -178,23 +181,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
             throw new ConnectorException("Licensing is not enabled");
         }
         return licensing;
-    }
-
-    private Directory directory;
-
-    private Licensing licensing;
-
-    static {
-        HttpTransport t = null;
-        try {
-            t = GoogleNetHttpTransport.newTrustedTransport();
-        } catch (Exception e) {
-            try {
-                t = new NetHttpTransport.Builder().doNotValidateCertificate().build();
-            } catch (GeneralSecurityException e1) {
-            }
-        }
-        HTTP_TRANSPORT = t;
     }
 
 }
