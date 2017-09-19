@@ -439,7 +439,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 GuardedString.class).setRequired(true).setReadable(false).setReturnedByDefault(
                 false).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.SUSPENDED_ATTR, Boolean.class));
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.SUSPENSION_REASON_ATTR).
                 setUpdateable(false).setCreateable(false).build());
 
@@ -535,7 +534,10 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         user.setOrganizations(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR));
         user.setPhones(attributes.findList(GoogleAppsConnector.PHONES_ATTR));
 
-        user.setSuspended(attributes.findBoolean(GoogleAppsConnector.SUSPENDED_ATTR));
+        Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
+        if (null != enable) {
+            user.setSuspended(!enable);
+        }
         user.setChangePasswordAtNextLogin(
                 attributes.findBoolean(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
         user.setIpWhitelisted(attributes.findBoolean(GoogleAppsConnector.IP_WHITELISTED_ATTR));
@@ -596,15 +598,13 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             content.setPassword(SecurityUtil.decrypt(password));
         }
 
-        Attribute suspended = attributes.find(GoogleAppsConnector.SUSPENDED_ATTR);
-        if (null != suspended) {
-            Boolean booleanValue = GoogleAppsUtil.getBooleanValueWithDefault(suspended, null);
-            if (null != booleanValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setSuspended(booleanValue);
+        Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
+        if (null != enable) {
+            if (null == content) {
+                content = new User();
             }
+
+            content.setSuspended(!enable);
         }
 
         Attribute changePasswordAtNextLogin = attributes.find(GoogleAppsConnector.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR);

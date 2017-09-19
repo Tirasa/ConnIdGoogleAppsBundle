@@ -138,8 +138,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     public static final String MY_CUSTOMER_ID = "my_customer";
 
-    public static final String SUSPENDED_ATTR = "suspended";
-
     public static final String CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR = "changePasswordAtNextLogin";
 
     public static final String IP_WHITELISTED_ATTR = "ipWhitelisted";
@@ -1570,20 +1568,19 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     LicenseAssignmentsHandler.updateLicenseAssignment(
                             configuration.getLicensing().licenseAssignments(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate =
-                        execute(patch,
-                                new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
+                uidAfterUpdate = execute(patch,
+                        new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
 
-                            @Override
-                            public Uid handleResult(
-                                    Licensing.LicenseAssignments.Patch request,
-                                    LicenseAssignment value) {
+                    @Override
+                    public Uid handleResult(
+                            Licensing.LicenseAssignments.Patch request,
+                            LicenseAssignment value) {
 
-                                LOG.ok("LicenseAssignment is Updated:{0}/{1}/{2}",
-                                        value.getProductId(), value.getSkuId(), value.getUserId());
-                                return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
-                            }
-                        });
+                        LOG.ok("LicenseAssignment is Updated:{0}/{1}/{2}",
+                                value.getProductId(), value.getSkuId(), value.getUserId());
+                        return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
+                    }
+                });
             }
         } else {
             LOG.warn("Update of type {0} is not supported", configuration.getConnectorMessages()
@@ -1603,7 +1600,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
         builder.setName(user.getPrimaryEmail());
         builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME,
-                user.getSuspended() == null || user.getSuspended()));
+                user.getSuspended() == null || !user.getSuspended()));
 
         // Optional
         // If both givenName and familyName are empty then Google didn't return with 'name'
@@ -1638,9 +1635,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
         if (null == attributesToGet || attributesToGet.contains(AGREED_TO_TERMS_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(AGREED_TO_TERMS_ATTR, user.getAgreedToTerms()));
-        }
-        if (null == attributesToGet || attributesToGet.contains(SUSPENDED_ATTR)) {
-            builder.addAttribute(AttributeBuilder.build(SUSPENDED_ATTR, user.getSuspended()));
         }
         if (null == attributesToGet || attributesToGet.contains(SUSPENSION_REASON_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(SUSPENSION_REASON_ATTR, user.getSuspensionReason()));
