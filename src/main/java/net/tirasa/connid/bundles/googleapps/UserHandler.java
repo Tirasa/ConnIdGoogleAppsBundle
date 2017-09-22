@@ -554,7 +554,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     }
 
     public static Directory.Users.Patch updateUser(
-            Directory.Users users, String groupKey, AttributesAccessor attributes) {
+            Directory.Users users, String userKey, AttributesAccessor attributes) {
 
         User content = null;
 
@@ -714,10 +714,10 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             return null;
         }
         try {
-            return users.patch(groupKey, content).setFields(GoogleAppsConnector.ID_ETAG);
+            return users.patch(userKey, content).setFields(GoogleAppsConnector.ID_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
-            LOG.warn(e, "Failed to initialize Groups#Patch");
+            LOG.warn(e, "Failed to initialize Users#Patch");
             throw ConnectorException.wrap(e);
         }
     }

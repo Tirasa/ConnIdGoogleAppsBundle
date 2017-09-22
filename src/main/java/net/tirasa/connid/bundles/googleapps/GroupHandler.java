@@ -373,7 +373,7 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
         try {
             return service.patch(groupKey, memberKey, content).setFields(GoogleAppsConnector.EMAIL_ETAG);
         } catch (IOException e) {
-            LOG.warn(e, "Failed to initialize Members#Insert");
+            LOG.warn(e, "Failed to initialize Members#Update");
             throw ConnectorException.wrap(e);
         }
     }

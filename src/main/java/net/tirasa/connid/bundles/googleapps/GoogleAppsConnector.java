@@ -710,8 +710,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     } while (!paged && StringUtil.isNotBlank(nextPageToken));
 
                     if (paged && StringUtil.isNotBlank(nextPageToken)) {
-                        LOG.info("Paged Search was requested and next token is:{0}",
-                                nextPageToken);
+                        LOG.info("Paged Search was requested and next token is:{0}", nextPageToken);
                         ((SearchResultsHandler) handler).handleResult(new SearchResult(nextPageToken, 0));
                     }
                 } catch (IOException e) {
@@ -1290,8 +1289,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
     }
 
     @Override
-    public Uid update(ObjectClass objectClass, Uid uid, Set<Attribute> replaceAttributes,
-            OperationOptions options) {
+    public Uid update(
+            final ObjectClass objectClass,
+            final Uid uid,
+            final Set<Attribute> replaceAttributes,
+            final OperationOptions options) {
+
         final AttributesAccessor attributesAccessor = new AttributesAccessor(replaceAttributes);
 
         Uid uidAfterUpdate = uid;
@@ -1398,15 +1401,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             final Directory.Groups.Patch patch = GroupHandler.updateGroup(
                     configuration.getDirectory().groups(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate =
-                        execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
+                uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
 
-                            @Override
-                            public Uid handleResult(Directory.Groups.Patch request, Group value) {
-                                LOG.ok("Group is Updated:{0}", value.getId());
-                                return new Uid(value.getId(), value.getEtag());
-                            }
-                        });
+                    @Override
+                    public Uid handleResult(Directory.Groups.Patch request, Group value) {
+                        LOG.ok("Group is Updated:{0}", value.getId());
+                        return new Uid(value.getId(), value.getEtag());
+                    }
+                });
             }
             Attribute members = attributesAccessor.find(MEMBERS_ATTR);
             if (null != members && null != members.getValue()) {
@@ -1533,18 +1535,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             if (StringUtil.isNotBlank(role)) {
                 String[] ids = uid.getUidValue().split("/");
                 if (ids.length == 2) {
-                    final Directory.Members.Patch patch =
-                            GroupHandler.updateMembers(
-                                    configuration.getDirectory().members(), ids[0], ids[1], role).setFields(EMAIL_ETAG);
-                    uidAfterUpdate =
-                            execute(patch, new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
+                    final Directory.Members.Patch patch = GroupHandler.updateMembers(
+                            configuration.getDirectory().members(), ids[0], ids[1], role).setFields(EMAIL_ETAG);
+                    uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
 
-                                @Override
-                                public Uid handleResult(Directory.Members.Patch request, Member value) {
-                                    LOG.ok("Member is updated:{0}/{1}", request.getGroupKey(), value.getEmail());
-                                    return GroupHandler.generateMemberId(request.getGroupKey(), value);
-                                }
-                            });
+                        @Override
+                        public Uid handleResult(Directory.Members.Patch request, Member value) {
+                            LOG.ok("Member is updated:{0}/{1}", request.getGroupKey(), value.getEmail());
+                            return GroupHandler.generateMemberId(request.getGroupKey(), value);
+                        }
+                    });
                 } else {
                     throw new UnknownUidException("Invalid ID format");
                 }
@@ -1553,15 +1553,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             final Directory.Orgunits.Patch patch = OrgunitsHandler.updateOrgunit(
                     configuration.getDirectory().orgunits(), uid.getUidValue(), attributesAccessor);
             if (null != patch) {
-                uidAfterUpdate =
-                        execute(patch, new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
+                uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
 
-                            @Override
-                            public Uid handleResult(Directory.Orgunits.Patch request, OrgUnit value) {
-                                LOG.ok("OrgUnit is updated:{0}", value.getName());
-                                return OrgunitsHandler.generateOrgUnitId(value);
-                            }
-                        });
+                    @Override
+                    public Uid handleResult(Directory.Orgunits.Patch request, OrgUnit value) {
+                        LOG.ok("OrgUnit is updated:{0}", value.getName());
+                        return OrgunitsHandler.generateOrgUnitId(value);
+                    }
+                });
             }
         } else if (LICENSE_ASSIGNMENT.equals(objectClass)) {
             final Licensing.LicenseAssignments.Patch patch =
