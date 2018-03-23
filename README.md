@@ -14,8 +14,8 @@ The GoogleApps bundle is part of the [ConnId](http://connid.tirasa.net) project.
 
 ```XML
 <dependency>
-  <groupId>org.connid.bundles</groupId>
-  <artifactId>org.connid.bundles.googleapps</artifactId>
+  <groupId>net.tirasa.connid.bundles</groupId>
+  <artifactId>net.tirasa.connid.bundles.googleapps</artifactId>
   <version>${connid.googleapps.version}</version>
 </dependency>
 ```
