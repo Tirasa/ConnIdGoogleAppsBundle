@@ -35,7 +35,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import org.identityconnectors.common.Assertions;
 import org.identityconnectors.common.CollectionUtil;
-import org.identityconnectors.common.IOUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
@@ -297,7 +296,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 @Override
                 public Uid handleResult(final Directory.Users.Insert request,
                         final User value) {
-                    LOG.ok("New User is created:{0}", value.getId());
+                    LOG.ok("New User is created: {0}", value.getId());
                     return new Uid(value.getId(), value.getEtag());
                 }
             });
@@ -620,7 +619,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         Attribute key = getKeyFromFilter(objectClass, query);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            if (null == key) {
+            if (null == key || null == key.getValue() || key.getValue().isEmpty() || null == key.getValue().get(0)) {
                 // Search request
                 try {
                     Directory.Users.List request = configuration.getDirectory().users().list();
@@ -741,7 +740,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         }
                     });
                 } catch (IOException e) {
-                    LOG.warn(e, "Failed to initialize Groups#Get");
+                    LOG.warn(e, "Failed to initialize Users#Get");
                     throw ConnectorException.wrap(e);
                 }
             }
@@ -1602,6 +1601,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME, !user.getSuspended()));
         }
 
+        if ((null == attributesToGet || attributesToGet.contains(ID_ATTR))) {
+            builder.addAttribute(AttributeBuilder.build(ID_ATTR, user.getId()));
+        }
+        if ((null == attributesToGet || attributesToGet.contains(PRIMARY_EMAIL_ATTR))) {
+            builder.addAttribute(AttributeBuilder.build(PRIMARY_EMAIL_ATTR, user.getPrimaryEmail()));
+        }
         // Optional
         // If both givenName and familyName are empty then Google didn't return with 'name'
         if (null == attributesToGet || attributesToGet.contains(GIVEN_NAME_ATTR)) {
