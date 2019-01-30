@@ -65,6 +65,7 @@ import com.google.api.services.admin.directory.model.UserPhoto;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
+import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
  *
@@ -220,6 +221,35 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
     @Override
     public StringBuilder visitEqualsFilter(Directory.Users.List list, EqualsFilter equalsFilter) {
+        if (AttributeUtil.namesEqual(equalsFilter.getName(), "customer")) {
+            if (null != list.getDomain()) {
+                throw new InvalidAttributeValueException(
+                        "The 'customer' and 'domain' can not be in the same query");
+            } else {
+                list.setCustomer(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
+            }
+        } else if (AttributeUtil.namesEqual(equalsFilter.getName(), "domain")) {
+            if (null != list.getCustomer()) {
+                throw new InvalidAttributeValueException(
+                        "The 'customer' and 'domain' can not be in the same query");
+            } else {
+                list.setDomain(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
+            }
+        } else {
+            String filedName = NAME_DICTIONARY.get(equalsFilter.getName());
+            if (null != filedName) {
+                return getStringBuilder(equalsFilter.getAttribute(), '=', null, filedName);
+            } else {
+                // Warning: not supported field name
+                throw new InvalidAttributeValueException("");
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    public StringBuilder visitEqualsIgnoreCaseFilter(Directory.Users.List list, EqualsIgnoreCaseFilter equalsFilter) {
         if (AttributeUtil.namesEqual(equalsFilter.getName(), "customer")) {
             if (null != list.getDomain()) {
                 throw new InvalidAttributeValueException(

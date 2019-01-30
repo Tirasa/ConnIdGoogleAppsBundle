@@ -59,6 +59,7 @@ import org.identityconnectors.framework.common.objects.filter.StartsWithFilter;
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.Group;
 import com.google.api.services.admin.directory.model.Member;
+import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
  * A GroupHandler is a util class to cover all Group related operations.
@@ -100,6 +101,36 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
 
     @Override
     public Void visitEqualsFilter(Directory.Groups.List list, EqualsFilter equalsFilter) {
+        if (equalsFilter.getAttribute().is("customer")) {
+            if (null != list.getDomain() || null != list.getUserKey()) {
+                throw new InvalidAttributeValueException(
+                        "The 'customer', 'domain' and 'userKey' can not be in the same query");
+            } else {
+                list.setCustomer(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
+            }
+        } else if (equalsFilter.getAttribute().is("domain")) {
+            if (null != list.getCustomer() || null != list.getUserKey()) {
+                throw new InvalidAttributeValueException(
+                        "The 'customer', 'domain' and 'userKey' can not be in the same query");
+            } else {
+                list.setDomain(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
+            }
+        } else if (equalsFilter.getAttribute().is("userKey")) {
+            if (null != list.getDomain() || null != list.getCustomer()) {
+                throw new InvalidAttributeValueException(
+                        "The 'customer', 'domain' and 'userKey' can not be in the same query");
+            } else {
+                list.setUserKey(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
+            }
+        } else {
+            throw getException();
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitEqualsIgnoreCaseFilter(Directory.Groups.List list, EqualsIgnoreCaseFilter equalsFilter) {
         if (equalsFilter.getAttribute().is("customer")) {
             if (null != list.getDomain() || null != list.getUserKey()) {
                 throw new InvalidAttributeValueException(
