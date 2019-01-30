@@ -84,8 +84,8 @@
 
   <properties>
     <connid.version>1.4.5.0</connid.version>
-    <google-libs.version>1.22.0</google-libs.version>
-        
+    <google-libs.version>1.28.0</google-libs.version>
+    <google-api-services.version>1.25.0</google-api-services.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -119,12 +119,12 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-admin-directory</artifactId>
-      <version>directory_v1-rev67-${google-libs.version}</version>
+      <version>directory_v1-rev105-${google-api-services.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-licensing</artifactId>
-      <version>v1-rev43-${google-libs.version}</version>
+      <version>v1-rev57-${google-api-services.version}</version>
     </dependency>
 
     <!-- TEST -->

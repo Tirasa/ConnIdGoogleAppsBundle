@@ -192,7 +192,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         String stringValue = AttributeUtil.getAsStringValue(attribute);
         if (StringUtil.isNotBlank(stringValue)) {
             stringValue = STRING_ESCAPER.escape(stringValue);
-            if (CharMatcher.WHITESPACE.matchesAnyOf(stringValue)) {
+            if (CharMatcher.whitespace().matchesAnyOf(stringValue)) {
                 builder.append('\'').append(stringValue);
                 if (null != postfix) {
                     builder.append(postfix);
