@@ -158,9 +158,47 @@
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
-        <version>0.11</version>
+        <version>0.13</version>
+        <configuration>
+          <excludes>
+            <exclude>**/nbactions.xml</exclude>
+            <exclude>**/nb-configuration.xml</exclude>
+            <exclude>**/META-INF/cxf/**</exclude>
+            <exclude>**/META-INF/services/**</exclude>
+            <exclude>**/META-INF/MANIFEST.MF</exclude>            
+            <exclude>**/*.csv</exclude>
+            <exclude>**/archetype-resources/**</exclude>
+            <exclude>**/AdminLTE*/**</exclude>
+            <exclude>**/goal.txt</exclude>
+            <exclude>**/rat.txt</exclude>
+            <exclude>**/build-copy-javadoc-files.xml</exclude>
+            <exclude>**/maven-eclipse.xml</exclude>
+            <exclude>**/*.iml</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/.externalToolBuilders/**</exclude>
+            <exclude>.git/**</exclude>
+            <exclude>.idea/**</exclude>
+            <exclude>**/.settings/**</exclude>
+            <exclude>**/.*</exclude>
+            <exclude>**/deb/control/conffiles</exclude>
+            <exclude>**/deb/control/control</exclude>
+            <exclude>**/*.lst</exclude>
+            <exclude>**/*.json</exclude>
+            <exclude>**/banner.txt</exclude>
+            <exclude>**/target/**</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>rat-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
