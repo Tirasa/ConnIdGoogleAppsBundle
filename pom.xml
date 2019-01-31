@@ -162,9 +162,8 @@
       </plugin>
       
       <plugin>
-        <groupId>com.mycila.maven-license-plugin</groupId>
-        <artifactId>maven-license-plugin</artifactId>
-        <version>1.10.b1</version>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
         <inherited>false</inherited>
         <configuration>
           <skip>true</skip>
