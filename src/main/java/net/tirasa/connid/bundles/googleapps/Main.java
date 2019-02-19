@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.MemoryDataStoreFactory;
-import org.identityconnectors.common.CollectionUtil;
 
 /**
  * Class to represent a GoogleApps Connector Configuration Class.
@@ -73,7 +73,7 @@ public class Main {
     public static final java.lang.String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
-    private static final List<String> SCOPES = CollectionUtil.newList(
+    private static final List<String> SCOPES = Arrays.asList(
             ADMIN_DIRECTORY_GROUP,
             ADMIN_DIRECTORY_ORGUNIT,
             ADMIN_DIRECTORY_USER,
@@ -131,5 +131,4 @@ public class Main {
         configMap.put("refreshToken", credential.getRefreshToken());
         return configMap;
     }
-
 }
