@@ -35,7 +35,7 @@
 
   <groupId>net.tirasa.connid.bundles</groupId>
   <artifactId>net.tirasa.connid.bundles.googleapps</artifactId>
-  <version>1.4.2</version>
+  <version>1.4.3-SNAPSHOT</version>
 
   <name>ConnId Bundles: Google Apps</name>
 
@@ -56,7 +56,7 @@
     <connection>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</connection>
     <url>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</url>
     <developerConnection>scm:git:git@github.com:Tirasa/ConnIdGoogleAppsBundle.git</developerConnection>
-    <tag>net.tirasa.connid.bundles.googleapps-1.4.2</tag>
+    <tag>HEAD</tag>
   </scm>
   
   <issueManagement>
