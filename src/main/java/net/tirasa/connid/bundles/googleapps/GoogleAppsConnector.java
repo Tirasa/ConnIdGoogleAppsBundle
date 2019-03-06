@@ -227,6 +227,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     public static final String TYPE_ATTR = "type";
 
+    public static final String CUSTOM_SCHEMAS = "customSchemas";
+
     public static final String PRODUCT_ID_SKU_ID_USER_ID = "productId,skuId,userId";
 
     public static final String PHOTO_ATTR = "__PHOTO__";
@@ -290,7 +292,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            Uid uid = execute(UserHandler.createUser(configuration.getDirectory().users(), accessor),
+            Uid uid = execute(UserHandler.createUser(configuration.getDirectory().users(), accessor, configuration.
+                    getCustomSchemasJSON()),
                     new RequestResultHandler<Directory.Users.Insert, User, Uid>() {
 
                 @Override
@@ -566,7 +569,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         if (null == schema) {
             final SchemaBuilder builder = new SchemaBuilder(GoogleAppsConnector.class);
 
-            ObjectClassInfo user = UserHandler.getUserClassInfo();
+            ObjectClassInfo user = UserHandler.getUserClassInfo(configuration.getCustomSchemasJSON());
             builder.defineObjectClass(user);
 
             ObjectClassInfo group = GroupHandler.getGroupClassInfo();
@@ -650,6 +653,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
                     // Implementation to support the 'OP_PAGED_RESULTS_COOKIE'
                     request.setPageToken(options.getPagedResultsCookie());
+                    request.setProjection(configuration.getProjection());
 
                     // Implementation to support the 'OP_ATTRIBUTES_TO_GET'
                     String fields = getFields(options, ID_ATTR, ETAG_ATTR, PRIMARY_EMAIL_ATTR);
@@ -723,6 +727,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     Directory.Users.Get request =
                             configuration.getDirectory().users().get((String) key.getValue().get(0));
                     request.setFields(getFields(options, ID_ATTR, ETAG_ATTR, PRIMARY_EMAIL_ATTR));
+                    request.setProjection(configuration.getProjection());
 
                     execute(request,
                             new RequestResultHandler<Directory.Users.Get, User, Boolean>() {
@@ -1263,6 +1268,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         if (null != options.getAttributesToGet()) {
             Set<String> attributes = CollectionUtil.newCaseInsensitiveSet();
             attributes.addAll(Arrays.asList(nameAttribute));
+            final boolean notBlankCustomSchemas = StringUtil.isNotBlank(configuration.getCustomSchemasJSON());
+            final List<String> customSchemaNames = notBlankCustomSchemas
+                    ? customSchemaNames(configuration.getCustomSchemasJSON())
+                    : new ArrayList<String>();
             for (String attribute : options.getAttributesToGet()) {
                 if (AttributeUtil.namesEqual(PredefinedAttributes.DESCRIPTION, attribute)) {
                     attributes.add(DESCRIPTION_ATTR);
@@ -1273,8 +1282,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     attributes.add("name/givenName");
                 } else if (AttributeUtil.namesEqual(FULL_NAME_ATTR, attribute)) {
                     attributes.add("name/fullName");
-                } else {
+                } else if (!customSchemaNames.contains(attribute)) {
                     attributes.add(attribute);
+                }
+                // return also customSchemas according to configuration
+                if ("full".equals(configuration.getProjection()) && notBlankCustomSchemas) {
+                    attributes.add(CUSTOM_SCHEMAS);
                 }
             }
             return StringUtil.join(attributes, COMMA);
@@ -1299,7 +1312,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         Uid uidAfterUpdate = uid;
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
             final Directory.Users.Patch patch =
-                    UserHandler.updateUser(configuration.getDirectory().users(), uid.getUidValue(), attributesAccessor);
+                    UserHandler.updateUser(configuration.getDirectory().users(), uid.getUidValue(), attributesAccessor,
+                            configuration.getCustomSchemasJSON());
             if (null != patch) {
                 uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
 
@@ -1702,7 +1716,28 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             builder.addAttribute(AttributeBuilder.build(DELETION_TIME_ATTR, null != user
                     .getDeletionTime() ? user.getDeletionTime().toString() : null));
         }
-
+        if (null == attributesToGet || ("full".equals(configuration.getProjection())
+                && StringUtil.isNotBlank(configuration.getCustomSchemasJSON()))) {
+            List<GoogleAppsCustomSchema> customSchemas = GoogleAppsUtil.extractCustomSchemas(configuration.
+                    getCustomSchemasJSON());
+            for (GoogleAppsCustomSchema customSchema : customSchemas) {
+                if (customSchema.getType().equals("object")) {
+                    // parse inner schemas
+                    String basicName = customSchema.getName();
+                    // manage only first level inner schemas
+                    for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                        final String innerSchemaName = basicName + "." + innerSchema.getName();
+                        builder.addAttribute(AttributeBuilder.build(
+                                innerSchemaName,
+                                null != user.getCustomSchemas()
+                                ? getValueFromKey(innerSchemaName, user.getCustomSchemas())
+                                : null));
+                    }
+                } else {
+                    LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+                }
+            }
+        }
         // Expensive to get
         if (null != attributesToGet && attributesToGet.contains(PredefinedAttributes.GROUPS_NAME)) {
             builder.addAttribute(
@@ -1916,6 +1951,29 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             val = bits % n;
         } while (bits - val + (n - 1) < 0L);
         return val;
+    }
+
+    private Object getValueFromKey(final String customSchema, final Map<String, Map<String, Object>> customSchemas) {
+        String[] names = customSchema.split("\\.");
+        return names.length > 1 ? customSchemas.get(names[0]).get(names[1]) : null;
+    }
+
+    private List<String> customSchemaNames(final String customSchemasJSON) {
+        List<GoogleAppsCustomSchema> customSchemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
+        List<String> customSchemaNames = new ArrayList<>();
+        for (GoogleAppsCustomSchema customSchema : customSchemas) {
+            if (customSchema.getType().equals("object")) {
+                // parse inner schemas
+                String basicName = customSchema.getName();
+                // manage only first level inner schemas
+                for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                    customSchemaNames.add(basicName + "." + innerSchema.getName());
+                }
+            } else {
+                LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+            }
+        }
+        return customSchemaNames;
     }
 
 }

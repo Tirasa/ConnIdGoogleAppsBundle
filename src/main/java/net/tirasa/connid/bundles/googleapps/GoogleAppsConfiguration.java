@@ -23,6 +23,7 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.common.security.SecurityUtil;
@@ -39,12 +40,18 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.licensing.Licensing;
+import java.io.IOException;
+import java.util.List;
+import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 
 /**
  * Extends the {@link AbstractConfiguration} class to provide all the necessary
  * parameters to initialize the GoogleApps Connector.
  */
 public class GoogleAppsConfiguration extends AbstractConfiguration implements StatefulConfiguration {
+
+    private static final Log LOG = Log.getLog(GoogleAppsConfiguration.class);
 
     /**
      * Global instance of the HTTP transport.
@@ -75,6 +82,10 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     private Directory directory;
 
     private Licensing licensing;
+
+    private String projection = "basic";
+
+    private String customSchemaJSON;
 
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
@@ -120,6 +131,27 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         this.refreshToken = refreshToken;
     }
 
+    @ConfigurationProperty(order = 5, displayMessageKey = "search.projection",
+            groupMessageKey = "basic.group", helpMessageKey = "search.projection.help", required = false,
+            confidential = false)
+    public String getProjection() {
+        return projection;
+    }
+
+    public void setProjection(final String projection) {
+        this.projection = projection;
+    }
+
+    @ConfigurationProperty(displayMessageKey = "customSchemaJSON.display",
+            helpMessageKey = "customSchemaJSON.help", order = 6)
+    public String getCustomSchemasJSON() {
+        return customSchemaJSON;
+    }
+
+    public void setCustomSchemasJSON(final String customAttributesJSON) {
+        this.customSchemaJSON = customAttributesJSON;
+    }
+
     @Override
     public void validate() {
         if (StringUtil.isBlank(domain)) {
@@ -133,6 +165,21 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         }
         if (null == refreshToken) {
             throw new IllegalArgumentException("Refresh Token cannot be null.");
+        }
+        if (StringUtil.isNotBlank(projection)
+                && !"basic".equals(projection)
+                && !"full".equals(projection)
+                && !"custom".equals(projection)) {
+            throw new IllegalArgumentException("Projection must be a value among [basic, full, custom]");
+        }
+        if (StringUtil.isNotBlank(customSchemaJSON)) {
+            try {
+                GoogleAppsUtil.MAPPER.readValue(customSchemaJSON, new TypeReference<List<GoogleAppsCustomSchema>>() {
+                });
+            } catch (IOException e) {
+                LOG.error(e, "While validating customSchemaJSON");
+                throw new ConfigurationException("'customSchemaJSON' parameter must be a valid JSON.");
+            }
         }
     }
 

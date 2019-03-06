@@ -65,6 +65,8 @@ import com.google.api.services.admin.directory.model.UserPhoto;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
+import java.util.HashMap;
+import java.util.List;
 import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
@@ -329,7 +331,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     // USER https://developers.google.com/admin-sdk/directory/v1/reference/users
     //
     // /////////////
-    public static ObjectClassInfo getUserClassInfo() {
+    public static ObjectClassInfo getUserClassInfo(final String customSchemasJSON) {
         // @formatter:off
         /*
          * {
@@ -519,11 +521,49 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
         builder.addAttributeInfo(PredefinedAttributeInfos.GROUPS);
 
+        // custom schemas
+        if (StringUtil.isNotBlank(customSchemasJSON)) {
+            List<GoogleAppsCustomSchema> customSchemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
+            for (GoogleAppsCustomSchema customSchema : customSchemas) {
+                if (customSchema.getType().equals("object")) {
+                    // parse inner schemas
+                    String basicName = customSchema.getName();
+                    // manage only first level inner schemas
+                    for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                        builder.addAttributeInfo(getAttributeInfoBuilder(basicName + "." + innerSchema.getName(),
+                                innerSchema).build());
+                    }
+                } else {
+                    LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+                }
+            }
+        }
+
         return builder.build();
     }
 
+    private static AttributeInfoBuilder getAttributeInfoBuilder(
+            final String name,
+            final GoogleAppsCustomSchema schema) {
+        AttributeInfoBuilder attributeInfoBuilder = AttributeInfoBuilder.define(name);
+        attributeInfoBuilder.setMultiValued(schema.getMultiValued());
+        switch (schema.getType()) {
+            case "string":
+                attributeInfoBuilder.setType(String.class);
+                break;
+            case "boolean":
+                attributeInfoBuilder.setType(Boolean.class);
+                break;
+            case "int":
+                attributeInfoBuilder.setType(Integer.class);
+                break;
+        }
+        return attributeInfoBuilder;
+    }
+
     // https://support.google.com/a/answer/33386
-    public static Directory.Users.Insert createUser(Directory.Users users, AttributesAccessor attributes) {
+    public static Directory.Users.Insert createUser(Directory.Users users, AttributesAccessor attributes,
+            String customSchemas) {
         User user = new User();
         user.setPrimaryEmail(GoogleAppsUtil.getName(attributes.getName()));
         GuardedString password = attributes.getPassword();
@@ -575,6 +615,11 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         user.setIncludeInGlobalAddressList(
                 attributes.findBoolean(GoogleAppsConnector.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR));
 
+        // customSchemas
+        if (StringUtil.isNotBlank(customSchemas)) {
+            addOrReplaceCustomSchemas(customSchemas, attributes, user);
+        }
+
         try {
             return users.insert(user).setFields(GoogleAppsConnector.ID_ETAG);
         } catch (IOException e) {
@@ -583,8 +628,32 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
     }
 
+    private static void addOrReplaceCustomSchemas(
+            final String customSchemasJSON, final AttributesAccessor attributes, final User user) {
+        List<GoogleAppsCustomSchema> schemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
+        for (GoogleAppsCustomSchema customSchema : schemas) {
+            Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
+            if (customSchema.getType().equals("object")) {
+                // parse inner schemas
+                String basicName = customSchema.getName();
+                // manage only first level inner schemas
+                for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                    final String innerSchemaName = basicName + "." + innerSchema.getName();
+                    Map<String, Object> value = new HashMap<>();
+                    value.put(innerSchema.getName(), innerSchema.getMultiValued()
+                            ? attributes.findStringList(innerSchemaName)
+                            : attributes.findString(innerSchemaName));
+                    attrsToAdd.put(basicName, value);
+                }
+            } else {
+                LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+            }
+            user.setCustomSchemas(attrsToAdd);
+        }
+    }
+
     public static Directory.Users.Patch updateUser(
-            Directory.Users users, String userKey, AttributesAccessor attributes) {
+            Directory.Users users, String userKey, AttributesAccessor attributes, String customSchemasJSON) {
 
         User content = null;
 
@@ -738,6 +807,11 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 }
                 content.setIncludeInGlobalAddressList(booleanValue);
             }
+        }
+
+        // customSchemas
+        if (StringUtil.isNotBlank(customSchemasJSON)) {
+            addOrReplaceCustomSchemas(customSchemasJSON, attributes, content);
         }
 
         if (null == content) {

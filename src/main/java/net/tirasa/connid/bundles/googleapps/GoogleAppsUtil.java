@@ -23,13 +23,39 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.List;
 import org.identityconnectors.common.StringUtil;
+import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.Name;
 
 public class GoogleAppsUtil {
+
+    private static final Log LOG = Log.getLog(GoogleAppsUtil.class);
+
+    public final static ObjectMapper MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+    public static List<GoogleAppsCustomSchema> extractCustomSchemas(final String json) {
+        List<GoogleAppsCustomSchema> customSchemasObj = null;
+        try {
+            customSchemasObj = MAPPER.readValue(
+                    json,
+                    new TypeReference<List<GoogleAppsCustomSchema>>() {
+            });
+        } catch (IOException e) {
+            LOG.error(e, "While validating customSchemaJSON");
+        }
+        return customSchemasObj;
+    }
 
     public static String getName(Name name) {
         if (name != null) {

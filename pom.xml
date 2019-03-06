@@ -86,6 +86,7 @@
     <connid.version>1.4.5.1</connid.version>
     <google-libs.version>1.28.0</google-libs.version>
     <google-api-services.version>1.25.0</google-api-services.version>
+    <jackson.version>2.9.8</jackson.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -127,6 +128,12 @@
       <version>v1-rev57-${google-api-services.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
     <!-- TEST -->
     <dependency>
       <groupId>net.tirasa.connid</groupId>
@@ -150,8 +157,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.5</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <source>1.7</source>
+          <target>1.7</target>
         </configuration>
       </plugin>
             
@@ -240,10 +247,13 @@
         <inherited>true</inherited>
         <!-- A google apps account is needed in order to run the tests -->
         <configuration>
-          <skip>true</skip>
+          <skip>false</skip>
           <includes>
             <include>**/*Tests.java</include>
           </includes>
+          <excludes>
+            <exclude>**/*UnitTests.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
 
