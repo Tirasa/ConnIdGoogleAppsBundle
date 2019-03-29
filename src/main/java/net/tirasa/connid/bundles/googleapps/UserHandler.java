@@ -631,25 +631,37 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     private static void addOrReplaceCustomSchemas(
             final String customSchemasJSON, final AttributesAccessor attributes, final User user) {
         List<GoogleAppsCustomSchema> schemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
+        Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
         for (GoogleAppsCustomSchema customSchema : schemas) {
-            Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
             if (customSchema.getType().equals("object")) {
                 // parse inner schemas
                 String basicName = customSchema.getName();
                 // manage only first level inner schemas
                 for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
                     final String innerSchemaName = basicName + "." + innerSchema.getName();
-                    Map<String, Object> value = new HashMap<>();
-                    value.put(innerSchema.getName(), innerSchema.getMultiValued()
-                            ? attributes.findStringList(innerSchemaName)
-                            : attributes.findString(innerSchemaName));
-                    attrsToAdd.put(basicName, value);
+                    if (attrsToAdd.containsKey(basicName)) {
+                        attrsToAdd.get(basicName).put(innerSchema.getName(), getValueByType(innerSchema, attributes,
+                                innerSchemaName));
+                    } else {
+                        Map<String, Object> value = new HashMap<>();
+                        value.put(innerSchema.getName(), getValueByType(innerSchema, attributes, innerSchemaName));
+                        attrsToAdd.put(basicName, value);
+                    }
                 }
             } else {
                 LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
             }
             user.setCustomSchemas(attrsToAdd);
         }
+    }
+
+    private static Object getValueByType(
+            final GoogleAppsCustomSchema innerSchema,
+            final AttributesAccessor attributes,
+            final String innerSchemaName) {
+        return innerSchema.getMultiValued()
+                ? attributes.findStringList(innerSchemaName)
+                : attributes.findString(innerSchemaName);
     }
 
     public static Directory.Users.Patch updateUser(

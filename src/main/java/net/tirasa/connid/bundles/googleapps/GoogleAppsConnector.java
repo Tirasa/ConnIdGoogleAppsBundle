@@ -1955,7 +1955,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     private Object getValueFromKey(final String customSchema, final Map<String, Map<String, Object>> customSchemas) {
         String[] names = customSchema.split("\\.");
-        return names.length > 1 ? customSchemas.get(names[0]).get(names[1]) : null;
+        return names.length > 1
+                ? customSchemas.get(names[0]) != null ? customSchemas.get(names[0]).get(names[1]) : null
+                : null;
     }
 
     private List<String> customSchemaNames(final String customSchemasJSON) {
