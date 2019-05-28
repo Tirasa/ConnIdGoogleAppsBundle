@@ -87,6 +87,12 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     private String customSchemaJSON;
 
+    private String[] skuIds = {};
+    
+    private String productId;
+    
+    private boolean removeLicenseOnDisable = false;
+    
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
             confidential = false)
@@ -150,6 +156,36 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     public void setCustomSchemasJSON(final String customAttributesJSON) {
         this.customSchemaJSON = customAttributesJSON;
+    }
+
+     @ConfigurationProperty(displayMessageKey = "skuIds.display",
+            helpMessageKey = "skuIds.help", required = false, order = 7)
+    public String[] getSkuIds() {
+        return skuIds;
+    }
+
+    public void setSkuIds(final String[] skuIds) {
+        this.skuIds = skuIds;
+    }
+
+     @ConfigurationProperty(displayMessageKey = "productId.display",
+            helpMessageKey = "productId.help", required = false, order = 8)
+    public String getProductId() {
+        return productId;
+    }
+
+    public void setProductId(final String productId) {
+        this.productId = productId;
+    }
+
+    @ConfigurationProperty(displayMessageKey = "removeLicenseOnDisable.display",
+            helpMessageKey = "removeLicenseOnDisable.help", required = false, order = 9)
+    public boolean getRemoveLicenseOnDisable() {
+        return removeLicenseOnDisable;
+    }
+
+    public void setRemoveLicenseOnDisable(final boolean removeLicenseOnDisable) {
+        this.removeLicenseOnDisable = removeLicenseOnDisable;
     }
 
     @Override

@@ -1410,6 +1410,54 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
                 }
             }
+            // GOOGLEAPPS-9
+            // license management: if remove license param is true and __ENABLE__ is false perform delete license
+            // license read must be performed with the user primaryEmail, userId is not allowed
+            if (configuration.getRemoveLicenseOnDisable()
+                    && !attributesAccessor.findBoolean(OperationalAttributes.ENABLE_NAME)
+                    && StringUtil.isNotBlank(attributesAccessor.findString(PRIMARY_EMAIL_ATTR))) {
+                for (String skuId : configuration.getSkuIds()) {
+                    // 1. retrieve user license
+                    try {
+                        // use email as key
+                        Licensing.LicenseAssignments.Get request =
+                                configuration.getLicensing().licenseAssignments().get(
+                                        configuration.getProductId(),
+                                        skuId,
+                                        attributesAccessor.findString(PRIMARY_EMAIL_ATTR));
+                        execute(request,
+                                new RequestResultHandler<Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
+
+                            @Override
+                            public Boolean handleResult(
+                                    Licensing.LicenseAssignments.Get request,
+                                    LicenseAssignment value) {
+                                try {
+                                    // 2. remove license
+                                    delete(LICENSE_ASSIGNMENT,
+                                            new Uid(GoogleAppsUtil.generateLicenseId(
+                                                    value.getProductId(),
+                                                    value.getSkuId(),
+                                                    value.getUserId())), null);
+                                } catch (Exception e) {
+                                    LOG.error(e, "Failed to delete license for user {0}", value.getUserId());
+                                    throw ConnectorException.wrap(e);
+                                }
+                                return true;
+                            }
+
+                            @Override
+                            public Boolean handleNotFound(IOException e) {
+                                // Do nothing if not found
+                                return true;
+                            }
+                        });
+                    } catch (IOException e) {
+                        LOG.error(e, "Unable to find license for {0}-{1}-{2}", configuration.getProductId(), skuId,
+                                attributesAccessor.findString(PRIMARY_EMAIL_ATTR));
+                    }
+                }
+            }
         } else if (ObjectClass.GROUP.equals(objectClass)) {
             final Directory.Groups.Patch patch = GroupHandler.updateGroup(
                     configuration.getDirectory().groups(), uid.getUidValue(), attributesAccessor);

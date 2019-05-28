@@ -132,12 +132,14 @@ public class LicenseAssignmentsHandler {
 
     public static final Pattern LICENSE_NAME_PATTERN =
             Pattern.compile(
-                    "(?i)(Google-Coordinate|Google-Drive-storage|Google-Vault)"
+                    "(?i)(Google-Coordinate|Google-Drive-storage|Google-Vault|Google-Apps)"
                     + "\\/sku\\/(Google-Coordinate|Google-Drive-storage-20GB|"
                     + "Google-Drive-storage-50GB|Google-Drive-storage-200GB|"
                     + "Google-Drive-storage-400GB|Google-Drive-storage-1TB|"
                     + "Google-Drive-storage-2TB|Google-Drive-storage-4TB|"
-                    + "Google-Drive-storage-8TB|Google-Drive-storage-16TB|Google-Vault)\\/user\\/(.+)");
+                    + "Google-Drive-storage-8TB|Google-Drive-storage-16TB|Google-Vault|Google-Vault-Former-Employee|"
+                    + "Google-Apps-For-Business|Google-Apps-Unlimited|Google-Apps-Lite|Google-Apps-For-Postini)"
+                    + "\\/user\\/(.+)");
 
     public static Licensing.LicenseAssignments.Patch updateLicenseAssignment(
             Licensing.LicenseAssignments service, String groupKey, AttributesAccessor attributes) {
@@ -184,9 +186,9 @@ public class LicenseAssignmentsHandler {
             throw new UnknownUidException("Unrecognised id");
         }
 
-        String productId = name.group(0);
-        String skuId = name.group(1);
-        String userId = name.group(2);
+        String productId = name.group(1);
+        String skuId = name.group(2);
+        String userId = name.group(3);
 
         try {
             return service.delete(productId, skuId, userId);

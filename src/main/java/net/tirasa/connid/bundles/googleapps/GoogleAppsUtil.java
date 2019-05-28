@@ -91,4 +91,11 @@ public class GoogleAppsUtil {
         }
         return defaultTo;
     }
+
+    public static String generateLicenseId(final String productId, final String skuId, final String userId) {
+        if (StringUtil.isBlank(productId) || StringUtil.isBlank(skuId) || StringUtil.isBlank(userId)) {
+            throw new IllegalArgumentException("productId, skuId and/or userId value(s) are not valid");
+        }
+        return productId + "/sku/" + skuId + "/user/" + userId;
+    }
 }
