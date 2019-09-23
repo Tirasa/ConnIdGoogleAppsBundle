@@ -6,7 +6,7 @@ cache:
   - $HOME/.m2
 language: java
 jdk:
-  - openjdk7
+  - openjdk8
 env:
   global:
     - SONATYPE_USERNAME=chicchiricco
