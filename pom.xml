@@ -86,7 +86,7 @@
     <connid.version>1.4.5.1</connid.version>
     <google-libs.version>1.28.0</google-libs.version>
     <google-api-services.version>1.25.0</google-api-services.version>
-    <jackson.version>2.9.10</jackson.version>
+    <jackson.version>2.10.0</jackson.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
