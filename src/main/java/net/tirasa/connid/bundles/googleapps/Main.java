@@ -101,7 +101,7 @@ public class Main {
                 System.out.println(JSON_FACTORY.toPrettyString(configMap));
                 return;
             } else {
-                System.err.println("Invalid client secret path. File not exits " + clientJson);
+                System.err.println("Invalid client secret path. File not exists " + clientJson);
             }
         }
 
