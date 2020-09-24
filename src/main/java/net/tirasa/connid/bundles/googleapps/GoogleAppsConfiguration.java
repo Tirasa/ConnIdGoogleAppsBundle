@@ -31,16 +31,19 @@ import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.spi.AbstractConfiguration;
 import org.identityconnectors.framework.spi.ConfigurationProperty;
 import org.identityconnectors.framework.spi.StatefulConfiguration;
-import com.google.api.client.auth.oauth2.ClientParametersAuthentication;
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.admin.directory.Directory;
+import com.google.api.services.admin.directory.DirectoryScopes;
 import com.google.api.services.licensing.Licensing;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.UserCredentials;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
@@ -77,7 +80,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     private GuardedString refreshToken = null;
 
-    private Credential credential = null;
+    private GoogleCredentials credentials = null;
 
     private Directory directory;
 
@@ -88,11 +91,11 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     private String customSchemaJSON;
 
     private String[] skuIds = {};
-    
+
     private String productId;
-    
+
     private boolean removeLicenseOnDisable = false;
-    
+
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
             confidential = false)
@@ -158,7 +161,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         this.customSchemaJSON = customAttributesJSON;
     }
 
-     @ConfigurationProperty(displayMessageKey = "skuIds.display",
+    @ConfigurationProperty(displayMessageKey = "skuIds.display",
             helpMessageKey = "skuIds.help", required = false, order = 7)
     public String[] getSkuIds() {
         return skuIds;
@@ -168,7 +171,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         this.skuIds = skuIds;
     }
 
-     @ConfigurationProperty(displayMessageKey = "productId.display",
+    @ConfigurationProperty(displayMessageKey = "productId.display",
             helpMessageKey = "productId.help", required = false, order = 8)
     public String getProductId() {
         return productId;
@@ -219,34 +222,42 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         }
     }
 
-    public Credential getGoogleCredential() {
+    public void getGoogleCredential() {
         synchronized (this) {
-            if (null == credential) {
-                credential = new GoogleCredential.Builder().
-                        setTransport(HTTP_TRANSPORT).
-                        setJsonFactory(JSON_FACTORY).
-                        setClientAuthentication(new ClientParametersAuthentication(
-                                getClientId(),
-                                SecurityUtil.decrypt(getClientSecret()))).
-                        build();
+            if (null == credentials) {
+                final UserCredentials.Builder credentialsBuilder =
+                        UserCredentials.newBuilder()
+                                .setClientId(getClientId())
+                                .setClientSecret(SecurityUtil.decrypt(getClientSecret()));
 
                 getRefreshToken().access(new GuardedString.Accessor() {
 
                     @Override
                     public void access(char[] chars) {
-                        credential.setRefreshToken(new String(chars));
+                        credentialsBuilder.setRefreshToken(new String(chars));
                     }
                 });
-
-                directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).
+                
+                final UserCredentials userCredentials = credentialsBuilder.build();
+                credentials = userCredentials
+                        .createScoped(Arrays.asList(DirectoryScopes.ADMIN_DIRECTORY_USER,
+                                DirectoryScopes.ADMIN_DIRECTORY_USER_ALIAS,
+                                DirectoryScopes.ADMIN_DIRECTORY_USERSCHEMA,
+                                DirectoryScopes.ADMIN_DIRECTORY_ORGUNIT,
+                                DirectoryScopes.ADMIN_DIRECTORY_DOMAIN,
+                                DirectoryScopes.ADMIN_DIRECTORY_NOTIFICATIONS,
+                                DirectoryScopes.ADMIN_DIRECTORY_GROUP,
+                                DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
+                
+                HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+                directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
                         setApplicationName("ConnId").
                         build();
-                licensing = new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).
+                licensing = new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
                         setApplicationName("ConnId").
                         build();
             }
         }
-        return credential;
     }
 
     @Override
