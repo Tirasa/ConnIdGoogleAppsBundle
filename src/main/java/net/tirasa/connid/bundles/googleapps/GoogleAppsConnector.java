@@ -1414,6 +1414,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             // license management: if remove license param is true and __ENABLE__ is false perform delete license
             // license read must be performed with the user primaryEmail, userId is not allowed
             if (configuration.getRemoveLicenseOnDisable()
+                    && attributesAccessor.hasAttribute(OperationalAttributes.ENABLE_NAME) 
                     && !attributesAccessor.findBoolean(OperationalAttributes.ENABLE_NAME)
                     && StringUtil.isNotBlank(attributesAccessor.findString(PRIMARY_EMAIL_ATTR))) {
                 for (String skuId : configuration.getSkuIds()) {
