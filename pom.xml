@@ -65,8 +65,8 @@
   </issueManagement>
 
   <ciManagement>
-    <system>Travis CI</system>
-    <url>https://travis-ci.org/Tirasa/ConnIdGoogleAppsBundle</url>
+    <system>GitHub Workflow</system>
+    <url>https://github.com/Tirasa/ConnIdGoogleAppsBundle/actions</url>
   </ciManagement>
 
   <mailingLists>
@@ -88,7 +88,7 @@
     <google-oauth-client.version>1.31.0</google-oauth-client.version>
     <google-api-services.version>1.25.0</google-api-services.version>
     <google-auth-library-oauth2-http.version>0.21.1</google-auth-library-oauth2-http.version>
-    <jackson.version>2.11.2</jackson.version>
+    <jackson.version>2.11.4</jackson.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
