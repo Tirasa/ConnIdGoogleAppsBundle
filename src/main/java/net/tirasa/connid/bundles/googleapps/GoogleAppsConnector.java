@@ -1414,7 +1414,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             // license management: if remove license param is true and __ENABLE__ is false perform delete license
             // license read must be performed with the user primaryEmail, userId is not allowed
             if (configuration.getRemoveLicenseOnDisable()
-                    && attributesAccessor.hasAttribute(OperationalAttributes.ENABLE_NAME) 
+                    && attributesAccessor.hasAttribute(OperationalAttributes.ENABLE_NAME)
                     && !attributesAccessor.findBoolean(OperationalAttributes.ENABLE_NAME)
                     && StringUtil.isNotBlank(attributesAccessor.findString(PRIMARY_EMAIL_ATTR))) {
                 for (String skuId : configuration.getSkuIds()) {
@@ -1933,6 +1933,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             if (null != details && null != details.getErrors()) {
                 GoogleJsonError.ErrorInfo errorInfo = details.getErrors().get(0);
                 // error: 403
+                LOG.error("Unable to execute request {0} - {1} - {2}",
+                        e.getStatusCode(), e.getStatusMessage(), errorInfo.getReason());
                 switch (e.getStatusCode()) {
                     case HttpStatusCodes.STATUS_CODE_FORBIDDEN:
                         if ("userRateLimitExceeded".equalsIgnoreCase(errorInfo.getReason())
@@ -1967,12 +1969,14 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             }
 
             if (e.getStatusCode() == HttpStatusCodes.STATUS_CODE_FORBIDDEN) {
+                LOG.error("Forbidden request");
                 if (retry < 5) {
                     return execute(request, handler, ++retry);
                 } else {
                     handler.handleError(e);
                 }
             } else if (e.getStatusCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND) {
+                LOG.error("Endpoint not found for request");
                 return handler.handleNotFound(e);
             }
             throw ConnectorException.wrap(e);
