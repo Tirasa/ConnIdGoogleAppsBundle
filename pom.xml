@@ -88,7 +88,7 @@
     <google-oauth-client.version>1.31.0</google-oauth-client.version>
     <google-api-services.version>1.25.0</google-api-services.version>
     <google-auth-library-oauth2-http.version>0.21.1</google-auth-library-oauth2-http.version>
-    <jackson.version>2.11.4</jackson.version>
+    <jackson.version>2.12.6</jackson.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -138,7 +138,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
+      <version>${jackson.version}.1</version>
     </dependency>
 
     <!-- TEST -->
