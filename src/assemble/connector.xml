@@ -28,7 +28,7 @@
           xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3
                               http://maven.apache.org/xsd/assembly-1.1.3.xsd">
 
-  <id>connector</id>
+  <id>bundle</id>
 
   <formats>
     <format>jar</format>
@@ -60,6 +60,21 @@
         <exclude>net.tirasa.connid:connector-framework</exclude>
         <exclude>net.tirasa.connid:connector-framework-internal</exclude>
         <exclude>net.tirasa.connid.bundles:net.tirasa.connid.bundles.googleapps</exclude>
+        <exclude>org.springframework.boot:spring-boot-autoconfigure</exclude>
+        <exclude>org.springframework.boot:spring-boot-starter-web</exclude>
+        <exclude>org.springframework.boot:spring-boot-starter</exclude>
+        <exclude>org.springframework.boot:spring-boot</exclude>
+        <exclude>org.springframework.boot:spring-boot-starter-json</exclude>
+        <exclude>org.springframework.boot:spring-boot-starter-logging</exclude>
+        <exclude>org.springframework.boot:spring-boot-starter-tomcat</exclude>
+        <exclude>org.springframework:spring-webmvc</exclude>
+        <exclude>org.springframework:spring-core</exclude>
+        <exclude>org.springframework:spring-web</exclude>
+        <exclude>org.springframework:spring-beans</exclude>
+        <exclude>org.springframework:spring-aop</exclude>
+        <exclude>org.springframework:spring-expression</exclude>
+        <exclude>org.springframework:spring-jcl</exclude>
+        <exclude>org.springframework:spring-context</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>
