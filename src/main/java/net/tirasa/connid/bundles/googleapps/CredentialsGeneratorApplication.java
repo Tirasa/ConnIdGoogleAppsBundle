@@ -1,25 +1,15 @@
-/*
- * ====================
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- *
- * Copyright (c) 2014 ForgeRock AS. All Rights Reserved
- *
- * The contents of this file are subject to the terms of the Common Development
- * and Distribution License("CDDL") (the "License").  You may not use this file
- * except in compliance with the License.
- *
- * You can obtain a copy of the License at
- * http://opensource.org/licenses/cddl1.php
- * See the License for the specific language governing permissions and limitations
- * under the License.
- *
- * When distributing the Covered Code, include this CDDL Header Notice in each file
- * and include the License file at http://opensource.org/licenses/cddl1.php.
- * If applicable, add the following below this CDDL Header, with the fields
- * enclosed by brackets [] replaced by your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- * ====================
- * Portions Copyrighted 2022 ConnId.
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.tirasa.connid.bundles.googleapps;
 
@@ -28,7 +18,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.Banner;
 import org.springframework.boot.CommandLineRunner;
@@ -40,6 +30,8 @@ import org.springframework.context.annotation.Bean;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,7 +66,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
 
     public static final Map<String, Object> configMap = new LinkedHashMap<String, Object>(3);
 
-    public static final JsonFactory JSON_FACTORY = new JacksonFactory();
+    public static final JsonFactory JSON_FACTORY = new GsonFactory();
 
     public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 
@@ -91,21 +83,26 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         SpringApplication sa = new SpringApplication(CredentialsGeneratorApplication.class);
         sa.setLogStartupInfo(false);
         sa.setBannerMode(Banner.Mode.OFF);
+        sa.setHeadless(false);
         sa.run(args);
     }
 
-    private void getConfigurationMap(File clientJson) throws IOException {
+    private void getConfigurationMap(File clientJson) throws IOException, URISyntaxException {
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
         configMap.put("clientId", clientSecrets.getDetails().getClientId());
         configMap.put("clientSecret", clientSecrets.getDetails().getClientSecret());
 
-        System.out.println("Request Url is " + new GoogleAuthorizationCodeRequestUrl(
+        String requestUrl = new GoogleAuthorizationCodeRequestUrl(
                 clientSecrets.getDetails().getClientId(),
                 redirectUri, SCOPES)
-                .setState("/profile").build());
+                .setState("/profile").build();
+        System.out.println("Request Url is " + requestUrl);
+
+        java.awt.Desktop.getDesktop().getDesktop().browse(new URI(requestUrl));
     }
 
     @Bean
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public ServletRegistrationBean codeProcessorServlet() {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setServlet(new CodeProcessorServlet(redirectUri));
@@ -114,7 +111,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws IOException {
+    public void run(String... args) throws IOException, URISyntaxException {
         if (args.length == 1) {
             File clientJson = new File(args[0]);
             if (clientJson.isDirectory()) {

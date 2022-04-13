@@ -1,32 +1,23 @@
-/*
- * ====================
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+/**
+ * Copyright © 2018 ConnId (connid-dev@googlegroups.com)
  *
- * Copyright (c) 2014 ForgeRock AS. All Rights Reserved
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * The contents of this file are subject to the terms of the Common Development
- * and Distribution License("CDDL") (the "License").  You may not use this file
- * except in compliance with the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You can obtain a copy of the License at
- * http://opensource.org/licenses/cddl1.php
- * See the License for the specific language governing permissions and limitations
- * under the License.
- *
- * When distributing the Covered Code, include this CDDL Header Notice in each file
- * and include the License file at http://opensource.org/licenses/cddl1.php.
- * If applicable, add the following below this CDDL Header, with the fields
- * enclosed by brackets [] replaced by your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- * ====================
- * Portions Copyrighted 2022 ConnId.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.tirasa.connid.bundles.googleapps;
 
 import com.google.api.client.auth.oauth2.AuthorizationCodeResponseUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
-import org.springframework.beans.factory.annotation.Value;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -34,6 +25,8 @@ import java.io.IOException;
 
 public class CodeProcessorServlet extends HttpServlet {
 
+    private static final long serialVersionUID = -6813584667162798300L;
+    
     private String redirectUri;
 
     public CodeProcessorServlet(final String redirectUri) {

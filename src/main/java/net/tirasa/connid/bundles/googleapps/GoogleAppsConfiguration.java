@@ -24,29 +24,29 @@
 package net.tirasa.connid.bundles.googleapps;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.identityconnectors.common.StringUtil;
-import org.identityconnectors.common.security.GuardedString;
-import org.identityconnectors.common.security.SecurityUtil;
-import org.identityconnectors.framework.common.exceptions.ConnectorException;
-import org.identityconnectors.framework.spi.AbstractConfiguration;
-import org.identityconnectors.framework.spi.ConfigurationProperty;
-import org.identityconnectors.framework.spi.StatefulConfiguration;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.DirectoryScopes;
 import com.google.api.services.licensing.Licensing;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
+import org.identityconnectors.common.StringUtil;
+import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.common.security.GuardedString;
+import org.identityconnectors.common.security.SecurityUtil;
+import org.identityconnectors.framework.common.exceptions.ConfigurationException;
+import org.identityconnectors.framework.common.exceptions.ConnectorException;
+import org.identityconnectors.framework.spi.AbstractConfiguration;
+import org.identityconnectors.framework.spi.ConfigurationProperty;
+import org.identityconnectors.framework.spi.StatefulConfiguration;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import org.identityconnectors.common.logging.Log;
-import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 
 /**
  * Extends the {@link AbstractConfiguration} class to provide all the necessary
@@ -64,7 +64,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     /**
      * Global instance of the JSON factory.
      */
-    private static final JsonFactory JSON_FACTORY = new JacksonFactory();
+    private static final JsonFactory JSON_FACTORY = new GsonFactory();
 
     private String domain = null;
 
@@ -237,7 +237,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                         credentialsBuilder.setRefreshToken(new String(chars));
                     }
                 });
-                
+
                 final UserCredentials userCredentials = credentialsBuilder.build();
                 credentials = userCredentials
                         .createScoped(Arrays.asList(DirectoryScopes.ADMIN_DIRECTORY_USER,
@@ -248,7 +248,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                                 DirectoryScopes.ADMIN_DIRECTORY_NOTIFICATIONS,
                                 DirectoryScopes.ADMIN_DIRECTORY_GROUP,
                                 DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
-                
+
                 HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
                 directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
                         setApplicationName("ConnId").
