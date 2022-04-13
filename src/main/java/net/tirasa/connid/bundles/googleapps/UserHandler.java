@@ -65,6 +65,7 @@ import com.google.api.services.admin.directory.model.UserPhoto;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
@@ -843,7 +844,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
         UserPhoto content = new UserPhoto();
         // Required
-        content.setPhotoData(com.google.api.client.util.Base64.encodeBase64URLSafeString(data));
+        content.setPhotoData(Base64.getMimeEncoder().encodeToString(data));
 
         // @formatter:off
         /*

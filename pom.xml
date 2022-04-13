@@ -30,7 +30,7 @@
   <parent>
     <groupId>net.tirasa.connid</groupId>
     <artifactId>connid</artifactId>
-    <version>1.4.5.1</version>
+    <version>1.5.1.0</version>
   </parent>
 
   <groupId>net.tirasa.connid.bundles</groupId>
@@ -83,7 +83,7 @@
   </mailingLists>
 
   <properties>
-    <connid.version>1.4.5.1</connid.version>
+    <connid.version>1.5.1.0</connid.version>
     <google-api-client.version>1.33.4</google-api-client.version>
     <google-oauth-client.version>1.33.2</google-oauth-client.version>
     <google-api-services.version>1.25.0</google-api-services.version>
@@ -159,8 +159,8 @@
     </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -187,10 +187,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.5</version>
+        <version>3.10.1</version>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>1.8</source>
+          <target>1.8</target>
         </configuration>
       </plugin>
             
@@ -250,7 +250,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>2.7</version>
+        <version>3.2.0</version>
         <executions>
           <execution>
             <id>copy-javadoc-legal-files</id>
@@ -292,17 +292,14 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
+        <inherited>true</inherited>
         <configuration>
-          <appendAssemblyId>false</appendAssemblyId>
+          <appendAssemblyId>true</appendAssemblyId>
           <descriptors>
             <descriptor>src/assemble/connector.xml</descriptor>
           </descriptors>
           <archive>
             <index>true</index>
-            <manifest>
-              <addClasspath>true</addClasspath>
-              <classpathPrefix>lib/</classpathPrefix>
-            </manifest>
             <manifestEntries>
               <ConnectorBundle-FrameworkVersion>${connid.version}</ConnectorBundle-FrameworkVersion>
               <ConnectorBundle-Name>${project.artifactId}</ConnectorBundle-Name>

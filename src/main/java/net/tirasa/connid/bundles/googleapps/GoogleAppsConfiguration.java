@@ -230,17 +230,11 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                                 .setClientId(getClientId())
                                 .setClientSecret(SecurityUtil.decrypt(getClientSecret()));
 
-                getRefreshToken().access(new GuardedString.Accessor() {
-
-                    @Override
-                    public void access(char[] chars) {
-                        credentialsBuilder.setRefreshToken(new String(chars));
-                    }
-                });
+                getRefreshToken().access(chars -> credentialsBuilder.setRefreshToken(new String(chars)));
 
                 final UserCredentials userCredentials = credentialsBuilder.build();
-                credentials = userCredentials
-                        .createScoped(Arrays.asList(DirectoryScopes.ADMIN_DIRECTORY_USER,
+                credentials = userCredentials.createScoped(
+                        Arrays.asList(DirectoryScopes.ADMIN_DIRECTORY_USER,
                                 DirectoryScopes.ADMIN_DIRECTORY_USER_ALIAS,
                                 DirectoryScopes.ADMIN_DIRECTORY_USERSCHEMA,
                                 DirectoryScopes.ADMIN_DIRECTORY_ORGUNIT,
@@ -276,5 +270,4 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         }
         return licensing;
     }
-
 }

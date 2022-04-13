@@ -26,27 +26,26 @@ import java.io.IOException;
 public class CodeProcessorServlet extends HttpServlet {
 
     private static final long serialVersionUID = -6813584667162798300L;
-    
-    private String redirectUri;
+
+    private final String redirectUri;
 
     public CodeProcessorServlet(final String redirectUri) {
         this.redirectUri = redirectUri;
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-
-        GoogleTokenResponse response =
-                new GoogleAuthorizationCodeTokenRequest(CredentialsGeneratorApplication.HTTP_TRANSPORT,
-                        CredentialsGeneratorApplication.JSON_FACTORY,
-                        CredentialsGeneratorApplication.configMap.get("clientId").toString(),
-                        CredentialsGeneratorApplication.configMap.get("clientSecret").toString(),
-                        new AuthorizationCodeResponseUrl(req.getQueryString() == null
-                                ? req.getRequestURL().toString()
-                                : new StringBuilder(req.getRequestURL().toString()).append('?')
+    protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) throws IOException {
+        GoogleTokenResponse response = new GoogleAuthorizationCodeTokenRequest(
+                CredentialsGeneratorApplication.HTTP_TRANSPORT,
+                CredentialsGeneratorApplication.JSON_FACTORY,
+                CredentialsGeneratorApplication.configMap.get("clientId").toString(),
+                CredentialsGeneratorApplication.configMap.get("clientSecret").toString(),
+                new AuthorizationCodeResponseUrl(req.getQueryString() == null
+                        ? req.getRequestURL().toString()
+                        : new StringBuilder(req.getRequestURL().toString()).append('?')
                                 .append(req.getQueryString())
                                 .toString()).getCode(), redirectUri)
-                        .execute();
+                .execute();
 
         CredentialsGeneratorApplication.configMap.put("refreshToken", response.getRefreshToken());
 

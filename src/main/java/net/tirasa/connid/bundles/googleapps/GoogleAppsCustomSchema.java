@@ -65,5 +65,4 @@ public class GoogleAppsCustomSchema {
         this.innerSchemas.clear();
         this.innerSchemas.addAll(innerSchemas);
     }
-
 }

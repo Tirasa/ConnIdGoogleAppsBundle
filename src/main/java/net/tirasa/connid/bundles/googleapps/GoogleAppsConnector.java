@@ -602,13 +602,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     @Override
     public FilterTranslator<Filter> createFilterTranslator(ObjectClass objectClass, OperationOptions options) {
-        return new FilterTranslator<Filter>() {
-
-            @Override
-            public List<Filter> translate(Filter filter) {
-                return CollectionUtil.newList(filter);
-            }
-        };
+        return CollectionUtil::newList;
     }
 
     @Override
@@ -1271,7 +1265,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             final boolean notBlankCustomSchemas = StringUtil.isNotBlank(configuration.getCustomSchemasJSON());
             final List<String> customSchemaNames = notBlankCustomSchemas
                     ? customSchemaNames(configuration.getCustomSchemasJSON())
-                    : new ArrayList<String>();
+                    : new ArrayList<>();
             for (String attribute : options.getAttributesToGet()) {
                 if (AttributeUtil.namesEqual(PredefinedAttributes.DESCRIPTION, attribute)) {
                     attributes.add(DESCRIPTION_ATTR);
@@ -1352,7 +1346,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     final Set<String> activeGroups =
                             listGroups(configuration.getDirectory().groups(), uidAfterUpdate.getUidValue());
 
-                    final List<Directory.Members.Insert> addGroups = new ArrayList<Directory.Members.Insert>();
+                    final List<Directory.Members.Insert> addGroups = new ArrayList<>();
                     final Set<String> keepGroups = CollectionUtil.newCaseInsensitiveSet();
 
                     for (Object member : groups.getValue()) {
@@ -1499,14 +1493,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     final List<Map<String, String>> activeMembership =
                             listMembers(service, uidAfterUpdate.getUidValue(), null);
 
-                    final List<Directory.Members.Insert> addMembership =
-                            new ArrayList<Directory.Members.Insert>();
-                    final List<Directory.Members.Patch> patchMembership =
-                            new ArrayList<Directory.Members.Patch>();
+                    final List<Directory.Members.Insert> addMembership = new ArrayList<>();
+                    final List<Directory.Members.Patch> patchMembership = new ArrayList<>();
 
                     for (Object member : members.getValue()) {
                         if (member instanceof Map) {
-
                             String email = (String) ((Map) member).get(EMAIL_ATTR);
                             if (null == email) {
                                 continue;
@@ -1841,23 +1832,20 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
     }
 
     protected List<Map<String, String>> listMembers(Directory.Members service, String groupKey, String roles) {
-        final List<Map<String, String>> result = new ArrayList<Map<String, String>>();
+        final List<Map<String, String>> result = new ArrayList<>();
         try {
             Directory.Members.List request = service.list(groupKey);
             request.setRoles(StringUtil.isBlank(roles) ? "OWNER,MANAGER,MEMBER" : roles);
 
             String nextPageToken;
             do {
-                nextPageToken = execute(request,
-                        new RequestResultHandler<Directory.Members.List, Members, String>() {
+                nextPageToken = execute(request, new RequestResultHandler<Directory.Members.List, Members, String>() {
 
                     @Override
-                    public String handleResult(Directory.Members.List request,
-                            Members value) {
+                    public String handleResult(Directory.Members.List request, Members value) {
                         if (null != value.getMembers()) {
                             for (Member member : value.getMembers()) {
-                                Map<String, String> m =
-                                        new LinkedHashMap<String, String>(2);
+                                Map<String, String> m = new LinkedHashMap<>(2);
                                 m.put(EMAIL_ATTR, member.getEmail());
                                 m.put(ROLE_ATTR, member.getRole());
                                 result.add(m);
@@ -1886,8 +1874,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             String nextPageToken;
             do {
-                nextPageToken = execute(request,
-                        new RequestResultHandler<Directory.Groups.List, Groups, String>() {
+                nextPageToken = execute(request, new RequestResultHandler<Directory.Groups.List, Groups, String>() {
 
                     @Override
                     public String handleResult(Directory.Groups.List request, Groups value) {
@@ -2030,5 +2017,4 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
         return customSchemaNames;
     }
-
 }

@@ -19,6 +19,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import java.awt.Desktop;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.Banner;
 import org.springframework.boot.CommandLineRunner;
@@ -64,7 +65,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     public static final String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
-    public static final Map<String, Object> configMap = new LinkedHashMap<String, Object>(3);
+    public static final Map<String, Object> configMap = new LinkedHashMap<>(3);
 
     public static final JsonFactory JSON_FACTORY = new GsonFactory();
 
@@ -98,7 +99,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
                 .setState("/profile").build();
         System.out.println("Request Url is " + requestUrl);
 
-        java.awt.Desktop.getDesktop().getDesktop().browse(new URI(requestUrl));
+        Desktop.getDesktop().browse(new URI(requestUrl));
     }
 
     @Bean

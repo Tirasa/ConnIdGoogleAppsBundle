@@ -15,9 +15,8 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.api.APIConfiguration;
 import org.identityconnectors.framework.api.ConnectorFacade;
@@ -27,18 +26,16 @@ import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.Schema;
 import org.identityconnectors.test.common.TestHelpers;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class GoogleAppsConnectorUnitTests {
-
-    private static final Log LOG = Log.getLog(GoogleAppsConnectorUnitTests.class);
 
     private static ConnectorFacade connector;
 
     private static GoogleAppsConfiguration connectorConfiguration;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() {
         connectorConfiguration = new GoogleAppsConfiguration();
 
@@ -98,5 +95,4 @@ public class GoogleAppsConnectorUnitTests {
         assertTrue(customSingleValuedSchemaFound2);
         assertTrue(customMultivaluedSchemaFound);
     }
-
 }
