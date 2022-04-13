@@ -90,7 +90,7 @@
     <google-auth-library-oauth2-http.version>1.6.0</google-auth-library-oauth2-http.version>
     <jackson.version>2.13.2.2</jackson.version>
 
-    <spring-boot-maven-plugin.version>2.6.5</spring-boot-maven-plugin.version>
+    <spring-boot-maven-plugin.version>2.6.6</spring-boot-maven-plugin.version>
     <spring-boot-starter-web.version>2.6.1</spring-boot-starter-web.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
