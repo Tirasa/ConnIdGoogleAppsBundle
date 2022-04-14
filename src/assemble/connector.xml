@@ -40,6 +40,9 @@
     <fileSet>
       <directory>${project.build.directory}/classes</directory>
       <outputDirectory></outputDirectory>
+      <excludes>
+        <exclude>net/tirasa/connid/bundles/googleapps/credentialsgenerator/*.*</exclude>
+      </excludes>
     </fileSet>
 
     <fileSet>
