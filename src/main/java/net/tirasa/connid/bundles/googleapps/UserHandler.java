@@ -25,7 +25,16 @@ package net.tirasa.connid.bundles.googleapps;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import com.google.api.client.util.GenericData;
+import com.google.api.services.admin.directory.model.UserAddress;
+import com.google.api.services.admin.directory.model.UserExternalId;
+import com.google.api.services.admin.directory.model.UserIm;
+import com.google.api.services.admin.directory.model.UserOrganization;
+import com.google.api.services.admin.directory.model.UserPhone;
+import com.google.api.services.admin.directory.model.UserRelation;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
@@ -68,6 +77,8 @@ import com.google.common.escape.Escapers;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
@@ -583,7 +594,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         } else {
             throw new InvalidAttributeValueException(
                     "Missing required attribute 'givenName'."
-                    + "The user's first name. Required when creating a user account.");
+                            + "The user's first name. Required when creating a user account.");
         }
 
         // familyName The user's last name. Required when creating a user account.
@@ -597,13 +608,15 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         // Optional
-        user.setIms(attributes.findList(GoogleAppsConnector.IMS_ATTR));
         user.setEmails(attributes.findList(GoogleAppsConnector.EMAILS_ATTR));
-        user.setExternalIds(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR));
-        user.setRelations(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR));
-        user.setAddresses(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR));
-        user.setOrganizations(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR));
-        user.setPhones(attributes.findList(GoogleAppsConnector.PHONES_ATTR));
+        // complex attributes 
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.IMS_ATTR), UserIm.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR), UserExternalId.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR), UserRelation.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR), UserAddress.class));
+        user.setOrganizations(
+                buildObjs(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR), UserOrganization.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.PHONES_ATTR), UserPhone.class));
 
         Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
         if (null != enable) {
@@ -627,6 +640,20 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
         }
+    }
+
+    private static <T extends GenericData> List<T> buildObjs(final List<Object> values, final Class<T> clazz) {
+        return values == null
+                ? null
+                : values.stream().map(v -> {
+            T obj = null;
+            if (v instanceof String) {
+                obj = GoogleAppsUtil.extract(v.toString(), clazz);
+            } else {
+                LOG.error("Unable to build obj from object {0}", v);
+            }
+            return obj;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     private static void addOrReplaceCustomSchemas(
@@ -742,15 +769,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        // Maps
-        Attribute ims = attributes.find(GoogleAppsConnector.IMS_ATTR);
-        if (null != ims) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setIms(ims.getValue());
-        }
-
         Attribute emails = attributes.find(GoogleAppsConnector.EMAILS_ATTR);
         if (null != emails) {
             if (null == content) {
@@ -758,46 +776,19 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
             content.setEmails(emails.getValue());
         }
-
-        Attribute externalIds = attributes.find(GoogleAppsConnector.EXTERNAL_IDS_ATTR);
-        if (null != externalIds) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setExternalIds(externalIds.getValue());
-        }
-
-        Attribute relations = attributes.find(GoogleAppsConnector.RELATIONS_ATTR);
-        if (null != relations) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setRelations(relations.getValue());
-        }
-
-        Attribute addresses = attributes.find(GoogleAppsConnector.ADDRESSES_ATTR);
-        if (null != addresses) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setAddresses(addresses.getValue());
-        }
-
-        Attribute organizations = attributes.find(GoogleAppsConnector.ORGANIZATIONS_ATTR);
-        if (null != organizations) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setOrganizations(organizations.getValue());
-        }
-
-        Attribute phones = attributes.find(GoogleAppsConnector.PHONES_ATTR);
-        if (null != phones) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setPhones(phones.getValue());
-        }
+        // Complex attributes
+        fillAttr(content, user -> user.setIms(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.IMS_ATTR)).orElse(null), UserIm.class)));
+        fillAttr(content, user -> user.setExternalIds(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.EXTERNAL_IDS_ATTR)).orElse(null), UserExternalId.class)));
+        fillAttr(content, user -> user.setRelations(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.RELATIONS_ATTR)).orElse(null), UserRelation.class)));
+        fillAttr(content, user -> user.setAddresses(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.ADDRESSES_ATTR)).orElse(null), UserAddress.class)));
+        fillAttr(content, user -> user.setOrganizations(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.ORGANIZATIONS_ATTR)).orElse(null), UserOrganization.class)));
+        fillAttr(content, user -> user.setPhones(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.PHONES_ATTR)).orElse(null), UserPhone.class)));
 
         Attribute orgUnitPath = attributes.find(GoogleAppsConnector.ORG_UNIT_PATH_ATTR);
         if (null != orgUnitPath) {
@@ -837,6 +828,15 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             LOG.warn(e, "Failed to initialize Users#Patch");
             throw ConnectorException.wrap(e);
         }
+    }
+
+    private static void fillAttr(
+            User content,
+            final Consumer<User> r) {
+        if (null == content) {
+            content = new User();
+        }
+        r.accept(content);
     }
 
     public static Directory.Users.Photos.Update createUpdateUserPhoto(
