@@ -642,7 +642,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
     }
 
-    private static <T extends GenericData> List<T> buildObjs(List<Object> values, Class<T> clazz) {
+    private static <T extends GenericData> List<T> buildObjs(final List<Object> values, final Class<T> clazz) {
         return values == null
                 ? null
                 : values.stream().map(v -> {
@@ -832,7 +832,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
     private static void fillAttr(
             User content,
-            Consumer<User> r) {
+            final Consumer<User> r) {
         if (null == content) {
             content = new User();
         }
