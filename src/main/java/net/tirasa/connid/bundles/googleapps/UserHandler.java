@@ -26,6 +26,13 @@ package net.tirasa.connid.bundles.googleapps;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import com.google.api.client.util.GenericData;
+import com.google.api.services.admin.directory.model.UserAddress;
+import com.google.api.services.admin.directory.model.UserExternalId;
+import com.google.api.services.admin.directory.model.UserIm;
+import com.google.api.services.admin.directory.model.UserOrganization;
+import com.google.api.services.admin.directory.model.UserPhone;
+import com.google.api.services.admin.directory.model.UserRelation;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
@@ -68,6 +75,7 @@ import com.google.common.escape.Escapers;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
@@ -597,13 +605,15 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         // Optional
-        user.setIms(attributes.findList(GoogleAppsConnector.IMS_ATTR));
         user.setEmails(attributes.findList(GoogleAppsConnector.EMAILS_ATTR));
-        user.setExternalIds(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR));
-        user.setRelations(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR));
-        user.setAddresses(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR));
-        user.setOrganizations(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR));
-        user.setPhones(attributes.findList(GoogleAppsConnector.PHONES_ATTR));
+        // complex attributes 
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.IMS_ATTR), UserIm.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR), UserExternalId.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR), UserRelation.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR), UserAddress.class));
+        user.setOrganizations(
+                buildObjs(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR), UserOrganization.class));
+        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.PHONES_ATTR), UserPhone.class));
 
         Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
         if (null != enable) {
@@ -627,6 +637,20 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
         }
+    }
+
+    private static <T extends GenericData> List<T> buildObjs(List<Object> values, Class<T> clazz) {
+        return values == null
+                ? null
+                : values.stream().map(v -> {
+            T obj = null;
+            if (v instanceof String) {
+                obj = GoogleAppsUtil.extract(v.toString(), clazz);
+            } else {
+                LOG.error("Unable to build obj from object {0}", v);
+            }
+            return obj;
+        }).filter(o -> o != null).collect(Collectors.toList());
     }
 
     private static void addOrReplaceCustomSchemas(
@@ -742,15 +766,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
         }
 
-        // Maps
-        Attribute ims = attributes.find(GoogleAppsConnector.IMS_ATTR);
-        if (null != ims) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setIms(ims.getValue());
-        }
-
         Attribute emails = attributes.find(GoogleAppsConnector.EMAILS_ATTR);
         if (null != emails) {
             if (null == content) {
@@ -758,45 +773,53 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             }
             content.setEmails(emails.getValue());
         }
+        // Complex attributes
+        List<Object> ims = attributes.findList(GoogleAppsConnector.IMS_ATTR);
+        if (null != ims) {
+            if (null == content) {
+                content = new User();
+            }
+            content.setIms(buildObjs(ims, UserIm.class));
+        }
 
-        Attribute externalIds = attributes.find(GoogleAppsConnector.EXTERNAL_IDS_ATTR);
+        List<Object> externalIds = attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR);
         if (null != externalIds) {
             if (null == content) {
                 content = new User();
             }
-            content.setExternalIds(externalIds.getValue());
+            content.setExternalIds(buildObjs(externalIds, UserExternalId.class));
         }
 
-        Attribute relations = attributes.find(GoogleAppsConnector.RELATIONS_ATTR);
+        List<Object> relations = attributes.findList(GoogleAppsConnector.RELATIONS_ATTR);
         if (null != relations) {
             if (null == content) {
                 content = new User();
             }
-            content.setRelations(relations.getValue());
+            content.setOrganizations(buildObjs(relations, UserRelation.class));
         }
 
-        Attribute addresses = attributes.find(GoogleAppsConnector.ADDRESSES_ATTR);
+        List<Object> addresses = attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR);
         if (null != addresses) {
             if (null == content) {
                 content = new User();
             }
-            content.setAddresses(addresses.getValue());
+            content.setOrganizations(buildObjs(addresses, UserAddress.class));
         }
 
-        Attribute organizations = attributes.find(GoogleAppsConnector.ORGANIZATIONS_ATTR);
+        List<Object> organizations = attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR);
         if (null != organizations) {
             if (null == content) {
                 content = new User();
             }
-            content.setOrganizations(organizations.getValue());
+            content.setOrganizations(buildObjs(organizations, UserOrganization.class));
         }
 
-        Attribute phones = attributes.find(GoogleAppsConnector.PHONES_ATTR);
+        List<Object> phones = attributes.findList(GoogleAppsConnector.PHONES_ATTR);
         if (null != phones) {
             if (null == content) {
                 content = new User();
             }
-            content.setPhones(phones.getValue());
+            content.setPhones(buildObjs(organizations, UserPhone.class));
         }
 
         Attribute orgUnitPath = attributes.find(GoogleAppsConnector.ORG_UNIT_PATH_ATTR);

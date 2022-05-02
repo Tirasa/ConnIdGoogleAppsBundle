@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
+import com.google.api.client.util.GenericData;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -50,11 +51,21 @@ public class GoogleAppsUtil {
             customSchemasObj = MAPPER.readValue(
                     json,
                     new TypeReference<List<GoogleAppsCustomSchema>>() {
-            });
+                    });
         } catch (IOException e) {
             LOG.error(e, "While validating customSchemaJSON");
         }
         return customSchemasObj;
+    }
+
+    public static <T extends GenericData> T extract(final String json, final Class<T> clazz) {
+        T obj = null;
+        try {
+            obj = MAPPER.readValue(json, clazz);
+        } catch (IOException e) {
+            LOG.error(e, "While extracting UserOrganization");
+        }
+        return obj;
     }
 
     public static String getName(Name name) {
