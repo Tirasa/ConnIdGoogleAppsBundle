@@ -88,7 +88,7 @@
     <google-oauth-client.version>1.33.3</google-oauth-client.version>
     <google-api-services.version>1.25.0</google-api-services.version>
     <google-auth-library-oauth2-http.version>1.6.0</google-auth-library-oauth2-http.version>
-    <jackson.version>2.13.2.2</jackson.version>
+    <jackson.version>2.13.4</jackson.version>
 
     <spring-boot.version>2.6.6</spring-boot.version>
 
