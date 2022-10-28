@@ -328,7 +328,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     }
 
     @Override
-    public StringBuilder visitOrFilter(Directory.Users.List list, OrFilter orFilter) {
+    public StringBuilder visitOrFilter(final Directory.Users.List list, final OrFilter orFilter) {
         StringBuilder builder = new StringBuilder();
         boolean first = true;
         for (Filter filter : orFilter.getFilters()) {
