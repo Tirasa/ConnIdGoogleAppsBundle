@@ -82,7 +82,6 @@ import java.util.stream.Collectors;
 import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
- *
  * @author Laszlo Hordos
  */
 public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users.List> {
@@ -329,8 +328,21 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     }
 
     @Override
-    public StringBuilder visitOrFilter(Directory.Users.List list, OrFilter filter) {
-        return null;
+    public StringBuilder visitOrFilter(Directory.Users.List list, OrFilter orFilter) {
+        StringBuilder builder = new StringBuilder();
+        boolean first = true;
+        for (Filter filter : orFilter.getFilters()) {
+            StringBuilder sb = filter.accept(this, list);
+            if (null != sb) {
+                if (!first) {
+                    builder.append(' ');
+                } else {
+                    first = false;
+                }
+                builder.append(sb);
+            }
+        }
+        return builder;
     }
 
     @Override
@@ -610,13 +622,14 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         // Optional
         user.setEmails(attributes.findList(GoogleAppsConnector.EMAILS_ATTR));
         // complex attributes 
-        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.IMS_ATTR), UserIm.class));
-        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.EXTERNAL_IDS_ATTR), UserExternalId.class));
-        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR), UserRelation.class));
+        user.setIms(buildObjs(attributes.findList(GoogleAppsConnector.IMS_ATTR), UserIm.class));
+        user.setRelations(buildObjs(attributes.findList(GoogleAppsConnector.RELATIONS_ATTR), UserRelation.class));
         user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.ADDRESSES_ATTR), UserAddress.class));
         user.setOrganizations(
                 buildObjs(attributes.findList(GoogleAppsConnector.ORGANIZATIONS_ATTR), UserOrganization.class));
-        user.setAddresses(buildObjs(attributes.findList(GoogleAppsConnector.PHONES_ATTR), UserPhone.class));
+        user.setPhones(buildObjs(attributes.findList(GoogleAppsConnector.PHONES_ATTR), UserPhone.class));
+        user.setExternalIds(buildObjs(Optional.ofNullable(attributes.findList(
+                GoogleAppsConnector.EXTERNAL_IDS_ATTR)).orElse(null), UserExternalId.class));
 
         Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
         if (null != enable) {
