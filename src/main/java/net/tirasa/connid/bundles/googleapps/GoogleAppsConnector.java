@@ -1926,7 +1926,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     case HttpStatusCodes.STATUS_CODE_FORBIDDEN:
                         if ("userRateLimitExceeded".equalsIgnoreCase(errorInfo.getReason())
                                 || "rateLimitExceeded".equalsIgnoreCase(errorInfo.getReason())) {
-                            LOG.info("System should retry");
+                            return handler.handleError(e);
                         }
                         break;
                     case HttpStatusCodes.STATUS_CODE_NOT_FOUND:
@@ -1957,11 +1957,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             if (e.getStatusCode() == HttpStatusCodes.STATUS_CODE_FORBIDDEN) {
                 LOG.error("Forbidden request");
-                if (retry < 5) {
-                    return execute(request, handler, ++retry);
-                } else {
-                    handler.handleError(e);
-                }
+                handler.handleError(e);
             } else if (e.getStatusCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND) {
                 LOG.error("Endpoint not found for request");
                 return handler.handleNotFound(e);
