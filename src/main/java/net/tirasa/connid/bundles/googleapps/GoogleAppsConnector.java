@@ -1421,8 +1421,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                         skuId,
                                         attributesAccessor.findString(PRIMARY_EMAIL_ATTR));
                         execute(request,
-                                new RequestResultHandler<Licensing.LicenseAssignments.Get, LicenseAssignment,
-                                        Boolean>() {
+                                new RequestResultHandler<Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
 
                             @Override
                             public Boolean handleResult(
