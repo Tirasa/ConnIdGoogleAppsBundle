@@ -123,6 +123,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     public static final String EMAIL_ETAG = "email,etag";
 
+    public static final String ID_EMAIL_ETAG = "id,email,etag";
+
     public static final String ID_ATTR = "id";
 
     public static final String ETAG_ATTR = "etag";
@@ -406,8 +408,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 @Override
                 public Uid handleResult(final Directory.Groups.Insert request,
                         final Group value) {
-                    LOG.ok("New Group is created:{0}", value.getId());
-                    return new Uid(value.getId(), value.getEtag());
+                    LOG.ok("New Group is created:{0}", value.getEmail());
+                    return new Uid(value.getEmail(), value.getEtag());
                 }
             });
             List<Object> members = accessor.findList(MEMBERS_ATTR);
@@ -751,7 +753,15 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     // userKey excludes the customer and domain!!
                     Directory.Groups.List request = configuration.getDirectory().groups().list();
                     if (null != query) {
-                        query.accept(new GroupHandler(), request);
+                        StringBuilder queryBuilder = query.accept(new GroupHandler(), request);
+                        if (null != queryBuilder) {
+                            String queryString = queryBuilder.toString();
+                            LOG.ok("Executing Query: {0}", queryString);
+                            request.setQuery(queryString);
+                        }
+                        if (null == request.getDomain() && null == request.getCustomer()) {
+                            request.setCustomer(MY_CUSTOMER_ID);
+                        }
                     } else {
                         request.setCustomer(MY_CUSTOMER_ID);
                     }
@@ -1119,6 +1129,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     && (filterAttr instanceof Name || filterAttr.getName().equalsIgnoreCase(ALIASES_ATTR))) {
                 key = filterAttr;
             } else if (ORG_UNIT.equals(objectClass) && filterAttr.getName().equalsIgnoreCase(ORG_UNIT_PATH_ATTR)) {
+                key = filterAttr;
+            } else if (ObjectClass.GROUP.equals(objectClass) && filterAttr.is(EMAIL_ATTR)) {
                 key = filterAttr;
             }
         } else if (filter instanceof AndFilter) {
@@ -1796,15 +1808,18 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         builder.setObjectClass(ObjectClass.GROUP);
 
         if (null != group.getEtag()) {
-            builder.setUid(new Uid(group.getId(), group.getEtag()));
+            builder.setUid(new Uid(group.getEmail(), group.getEtag()));
         } else {
-            builder.setUid(group.getId());
+            builder.setUid(group.getEmail());
         }
         builder.setName(group.getEmail());
 
         // Optional
         if (null == attributesToGet || attributesToGet.contains(NAME_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(NAME_ATTR, group.getName()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(EMAIL_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(EMAIL_ATTR, group.getEmail()));
         }
         if (null == attributesToGet || attributesToGet.contains(PredefinedAttributes.DESCRIPTION)) {
             builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.DESCRIPTION, group.getDescription()));
