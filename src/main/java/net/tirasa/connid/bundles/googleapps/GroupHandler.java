@@ -24,6 +24,9 @@
 package net.tirasa.connid.bundles.googleapps;
 
 import java.io.IOException;
+import com.google.common.base.CharMatcher;
+import com.google.common.escape.Escaper;
+import com.google.common.escape.Escapers;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
@@ -66,20 +69,22 @@ import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFi
  *
  * @author Laszlo Hordos
  */
-public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> {
+public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Groups.List> {
 
     /**
      * Setup logging for the {@link GroupHandler}.
      */
     private static final Log LOG = Log.getLog(GroupHandler.class);
 
+    private static final Escaper STRING_ESCAPER = Escapers.builder().addEscape('\'', "\\'").build();
+
     @Override
-    public Void visitAndFilter(Directory.Groups.List list, AndFilter andFilter) {
+    public StringBuilder visitAndFilter(Directory.Groups.List list, AndFilter andFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitContainsFilter(Directory.Groups.List list, ContainsFilter containsFilter) {
+    public StringBuilder visitContainsFilter(Directory.Groups.List list, ContainsFilter containsFilter) {
         if (containsFilter.getAttribute().is(GoogleAppsConnector.MEMBERS_ATTR)) {
             list.setUserKey(containsFilter.getValue());
         } else {
@@ -88,8 +93,30 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
         return null;
     }
 
+    protected StringBuilder getStringBuilder(Attribute attribute, char operator, Character postfix, String filedName) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(filedName).append(operator);
+        String stringValue = AttributeUtil.getAsStringValue(attribute);
+        if (StringUtil.isNotBlank(stringValue)) {
+            stringValue = STRING_ESCAPER.escape(stringValue);
+            if (CharMatcher.whitespace().matchesAnyOf(stringValue)) {
+                builder.append('\'').append(stringValue);
+                if (null != postfix) {
+                    builder.append(postfix);
+                }
+                builder.append('\'');
+            } else {
+                builder.append(stringValue);
+                if (null != postfix) {
+                    builder.append(postfix);
+                }
+            }
+        }
+        return builder;
+    }
+
     @Override
-    public Void visitContainsAllValuesFilter(
+    public StringBuilder visitContainsAllValuesFilter(
             Directory.Groups.List list, ContainsAllValuesFilter containsAllValuesFilter) {
         throw getException();
     }
@@ -100,7 +127,7 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
     }
 
     @Override
-    public Void visitEqualsFilter(Directory.Groups.List list, EqualsFilter equalsFilter) {
+    public StringBuilder visitEqualsFilter(Directory.Groups.List list, EqualsFilter equalsFilter) {
         if (equalsFilter.getAttribute().is("customer")) {
             if (null != list.getDomain() || null != list.getUserKey()) {
                 throw new InvalidAttributeValueException(
@@ -123,14 +150,20 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
                 list.setUserKey(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
             }
         } else {
-            throw getException();
+            String filedName = equalsFilter.getName();
+            if (null != filedName) {
+                return getStringBuilder(equalsFilter.getAttribute(), '=', null, filedName);
+            } else {
+                // Warning: not supported field name
+                throw new InvalidAttributeValueException("");
+            }
         }
 
         return null;
     }
 
     @Override
-    public Void visitEqualsIgnoreCaseFilter(Directory.Groups.List list, EqualsIgnoreCaseFilter equalsFilter) {
+    public StringBuilder visitEqualsIgnoreCaseFilter(Directory.Groups.List list, EqualsIgnoreCaseFilter equalsFilter) {
         if (equalsFilter.getAttribute().is("customer")) {
             if (null != list.getDomain() || null != list.getUserKey()) {
                 throw new InvalidAttributeValueException(
@@ -153,57 +186,63 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
                 list.setUserKey(AttributeUtil.getStringValue(equalsFilter.getAttribute()));
             }
         } else {
-            throw getException();
+            String filedName = equalsFilter.getName();
+            if (null != filedName) {
+                return getStringBuilder(equalsFilter.getAttribute(), '=', null, filedName);
+            } else {
+                // Warning: not supported field name
+                throw new InvalidAttributeValueException("");
+            }
         }
 
         return null;
     }
 
     @Override
-    public Void visitExtendedFilter(Directory.Groups.List list, Filter filter) {
+    public StringBuilder visitExtendedFilter(Directory.Groups.List list, Filter filter) {
         throw getException();
     }
 
     @Override
-    public Void visitGreaterThanFilter(Directory.Groups.List list,
+    public StringBuilder visitGreaterThanFilter(Directory.Groups.List list,
             GreaterThanFilter greaterThanFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitGreaterThanOrEqualFilter(Directory.Groups.List list,
+    public StringBuilder visitGreaterThanOrEqualFilter(Directory.Groups.List list,
             GreaterThanOrEqualFilter greaterThanOrEqualFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitLessThanFilter(Directory.Groups.List list, LessThanFilter lessThanFilter) {
+    public StringBuilder visitLessThanFilter(Directory.Groups.List list, LessThanFilter lessThanFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitLessThanOrEqualFilter(Directory.Groups.List list,
+    public StringBuilder visitLessThanOrEqualFilter(Directory.Groups.List list,
             LessThanOrEqualFilter lessThanOrEqualFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitNotFilter(Directory.Groups.List list, NotFilter notFilter) {
+    public StringBuilder visitNotFilter(Directory.Groups.List list, NotFilter notFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitOrFilter(Directory.Groups.List list, OrFilter orFilter) {
+    public StringBuilder visitOrFilter(Directory.Groups.List list, OrFilter orFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitStartsWithFilter(Directory.Groups.List list, StartsWithFilter startsWithFilter) {
+    public StringBuilder visitStartsWithFilter(Directory.Groups.List list, StartsWithFilter startsWithFilter) {
         throw getException();
     }
 
     @Override
-    public Void visitEndsWithFilter(Directory.Groups.List list, EndsWithFilter endsWithFilter) {
+    public StringBuilder visitEndsWithFilter(Directory.Groups.List list, EndsWithFilter endsWithFilter) {
         throw getException();
     }
 
@@ -291,7 +330,7 @@ public class GroupHandler implements FilterVisitor<Void, Directory.Groups.List> 
         group.setName(attributes.findString(GoogleAppsConnector.NAME_ATTR));
 
         try {
-            return groups.insert(group).setFields(GoogleAppsConnector.ID_ETAG);
+            return groups.insert(group).setFields(GoogleAppsConnector.ID_EMAIL_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
