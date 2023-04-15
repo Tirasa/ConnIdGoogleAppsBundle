@@ -31,45 +31,65 @@ import org.junit.jupiter.api.Test;
 
 public class GoogleAppsConnectorUnitTests {
 
-    private static ConnectorFacade connector;
+    private static ConnectorFacade CONNECTOR;
 
-    private static GoogleAppsConfiguration connectorConfiguration;
+    private static GoogleAppsConfiguration CONN_CONF;
 
     @BeforeAll
     public static void setUp() {
-        connectorConfiguration = new GoogleAppsConfiguration();
+        CONN_CONF = new GoogleAppsConfiguration();
 
-        connectorConfiguration.setClientId("aclientid");
-        connectorConfiguration.setClientSecret(new GuardedString("aclientsecret".toCharArray()));
-        connectorConfiguration.setDomain("adomain");
-        connectorConfiguration.setProjection("full");
-        connectorConfiguration.setRefreshToken(new GuardedString("arefreshtoken".toCharArray()));
-        connectorConfiguration.setCustomSchemasJSON("[{\n" + "\"name\": \"Classificazione\",\n"
-                + "\"multiValued\": false,\n" + "\"type\": \"object\",\n" + "\"innerSchemas\": [{\n"
-                + "\"name\": \"Funzionale\",\n" + "\"multiValued\": false,\n" + "\"type\": \"boolean\",\n"
-                + "\"innerSchemas\": []\n" + "},\n" + "{\n" + "\"name\": \"Multivalue\",\n" + "\"multiValued\": true,\n"
-                + "\"type\": \"String\",\n" + "\"innerSchemas\": []\n" + "}]\n" + "},\n" + "{\n"
-                + "\"name\": \"Classificazione2\",\n" + "\"multiValued\": false,\n" + "\"type\": \"object\",\n"
-                + "\"innerSchemas\": [{\n" + "\"name\": \"Funzionale2\",\n" + "\"multiValued\": false,\n"
-                + "\"type\": \"boolean\",\n" + "\"innerSchemas\": []\n" + "}]\n" + "}]");
-        connector = newFacade();
+        CONN_CONF.setClientId("aclientid");
+        CONN_CONF.setClientSecret(new GuardedString("aclientsecret".toCharArray()));
+        CONN_CONF.setDomain("adomain");
+        CONN_CONF.setProjection("full");
+        CONN_CONF.setRefreshToken(new GuardedString("arefreshtoken".toCharArray()));
+        CONN_CONF.setCustomSchemasJSON("[{"
+                + "\"name\": \"Classificazione\","
+                + "\"multiValued\": false,"
+                + "\"type\": \"object\","
+                + "\"innerSchemas\": [{"
+                + "\"name\": \"Funzionale\","
+                + "\"multiValued\": false,"
+                + "\"type\": \"boolean\","
+                + "\"innerSchemas\": []"
+                + "},"
+                + "{"
+                + "\"name\": \"Multivalue\","
+                + "\"multiValued\": true,"
+                + "\"type\": \"String\","
+                + "\"innerSchemas\": []"
+                + "}]"
+                + "},"
+                + "{"
+                + "\"name\": \"Classificazione2\","
+                + "\"multiValued\": false,"
+                + "\"type\": \"object\","
+                + "\"innerSchemas\": [{"
+                + "\"name\": \"Funzionale2\","
+                + "\"multiValued\": false,"
+                + "\"type\": \"boolean\","
+                + "\"innerSchemas\": []"
+                + "}]"
+                + "}]");
+        CONNECTOR = newFacade();
     }
 
     private static ConnectorFacade newFacade() {
         ConnectorFacadeFactory factory = ConnectorFacadeFactory.getInstance();
-        APIConfiguration impl = TestHelpers.createTestConfiguration(GoogleAppsConnector.class, connectorConfiguration);
+        APIConfiguration impl = TestHelpers.createTestConfiguration(GoogleAppsConnector.class, CONN_CONF);
         impl.getResultsHandlerConfiguration().setFilteredResultsHandlerInValidationMode(true);
         return factory.newInstance(impl);
     }
 
     @Test
     public void validate() {
-        connector.validate();
+        CONNECTOR.validate();
     }
 
     @Test
     public void schema() {
-        Schema schema = connector.schema();
+        Schema schema = CONNECTOR.schema();
         boolean accountFound = false;
         boolean customSingleValuedSchemaFound1 = false;
         boolean customSingleValuedSchemaFound2 = false;

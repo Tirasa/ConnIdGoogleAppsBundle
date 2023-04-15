@@ -30,7 +30,7 @@
   <parent>
     <groupId>net.tirasa.connid</groupId>
     <artifactId>connid</artifactId>
-    <version>1.5.1.0</version>
+    <version>1.5.2.0</version>
   </parent>
 
   <groupId>net.tirasa.connid.bundles</groupId>
@@ -83,14 +83,16 @@
   </mailingLists>
 
   <properties>
-    <connid.version>1.5.1.0</connid.version>
+    <connid.version>1.5.2.0</connid.version>
     <google-api-client.version>1.33.4</google-api-client.version>
     <google-oauth-client.version>1.33.3</google-oauth-client.version>
     <google-api-services.version>1.25.0</google-api-services.version>
     <google-auth-library-oauth2-http.version>1.6.0</google-auth-library-oauth2-http.version>
     <jackson.version>2.13.4.2</jackson.version>
 
-    <spring-boot.version>2.6.6</spring-boot.version>
+    <spring-boot.version>2.6.14</spring-boot.version>
+
+    <java.version>1.8</java.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -187,17 +189,63 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.10.1</version>
+        <version>3.11.0</version>
+        <inherited>false</inherited>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <useIncrementalCompilation>false</useIncrementalCompilation>
+          <showWarnings>true</showWarnings>
+          <showDeprecation>true</showDeprecation>
+          <compilerArgument>-Xlint:unchecked</compilerArgument>
         </configuration>
       </plugin>
-            
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>3.2.1</version>
+        <configuration>
+          <configLocation>${basedir}/src/main/resources/checkstyle.xml</configLocation>
+          <sourceDirectories>
+            <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+            <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
+          </sourceDirectories>
+          <skip>${skipTests}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>checkstyle-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.gaul</groupId>
+        <artifactId>modernizer-maven-plugin</artifactId>
+        <version>2.5.0</version>
+        <configuration>
+          <javaVersion>${targetJdk}</javaVersion>
+        </configuration>
+        <executions>
+          <execution>
+            <id>modernizer-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>modernizer</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
-        <version>0.13</version>
+        <version>0.15</version>
         <configuration>
           <excludes>
             <exclude>**/nbactions.xml</exclude>
@@ -277,16 +325,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <inherited>true</inherited>
-        <!-- A google apps account is needed in order to run the tests -->
-        <configuration>
-          <skip>false</skip>
-          <includes>
-            <include>**/*Tests.java</include>
-          </includes>
-          <excludes>
-            <exclude>**/*UnitTests.java</exclude>
-          </excludes>
-        </configuration>
       </plugin>
 
       <plugin>

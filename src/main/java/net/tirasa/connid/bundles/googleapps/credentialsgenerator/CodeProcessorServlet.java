@@ -18,10 +18,10 @@ package net.tirasa.connid.bundles.googleapps.credentialsgenerator;
 import com.google.api.client.auth.oauth2.AuthorizationCodeResponseUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import java.io.IOException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 
 public class CodeProcessorServlet extends HttpServlet {
 
@@ -38,8 +38,8 @@ public class CodeProcessorServlet extends HttpServlet {
         GoogleTokenResponse response = new GoogleAuthorizationCodeTokenRequest(
                 CredentialsGeneratorApplication.HTTP_TRANSPORT,
                 CredentialsGeneratorApplication.JSON_FACTORY,
-                CredentialsGeneratorApplication.configMap.get("clientId").toString(),
-                CredentialsGeneratorApplication.configMap.get("clientSecret").toString(),
+                CredentialsGeneratorApplication.CONFIG_MAP.get("clientId").toString(),
+                CredentialsGeneratorApplication.CONFIG_MAP.get("clientSecret").toString(),
                 new AuthorizationCodeResponseUrl(req.getQueryString() == null
                         ? req.getRequestURL().toString()
                         : new StringBuilder(req.getRequestURL().toString()).append('?')
@@ -47,10 +47,10 @@ public class CodeProcessorServlet extends HttpServlet {
                                 .toString()).getCode(), redirectUri)
                 .execute();
 
-        CredentialsGeneratorApplication.configMap.put("refreshToken", response.getRefreshToken());
+        CredentialsGeneratorApplication.CONFIG_MAP.put("refreshToken", response.getRefreshToken());
 
         String secretsContent =
-                CredentialsGeneratorApplication.JSON_FACTORY.toPrettyString(CredentialsGeneratorApplication.configMap);
+                CredentialsGeneratorApplication.JSON_FACTORY.toPrettyString(CredentialsGeneratorApplication.CONFIG_MAP);
         System.out.println(secretsContent);
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.getWriter().write(secretsContent);

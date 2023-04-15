@@ -20,14 +20,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import java.awt.Desktop;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.Banner;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.servlet.ServletRegistrationBean;
-import org.springframework.context.annotation.Bean;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -37,6 +29,14 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.Banner;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
+import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 @EnableConfigurationProperties
@@ -65,7 +65,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     public static final String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
-    public static final Map<String, Object> configMap = new LinkedHashMap<>(3);
+    public static final Map<String, Object> CONFIG_MAP = new LinkedHashMap<>(3);
 
     public static final JsonFactory JSON_FACTORY = new GsonFactory();
 
@@ -88,10 +88,10 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         sa.run(args);
     }
 
-    private void getConfigurationMap(File clientJson) throws IOException, URISyntaxException {
+    private void getConfigurationMap(final File clientJson) throws IOException, URISyntaxException {
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
-        configMap.put("clientId", clientSecrets.getDetails().getClientId());
-        configMap.put("clientSecret", clientSecrets.getDetails().getClientSecret());
+        CONFIG_MAP.put("clientId", clientSecrets.getDetails().getClientId());
+        CONFIG_MAP.put("clientSecret", clientSecrets.getDetails().getClientSecret());
 
         String requestUrl = new GoogleAuthorizationCodeRequestUrl(
                 clientSecrets.getDetails().getClientId(),
@@ -112,7 +112,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws IOException, URISyntaxException {
+    public void run(final String... args) throws IOException, URISyntaxException {
         if (args.length == 1) {
             File clientJson = new File(args[0]);
             if (clientJson.isDirectory()) {

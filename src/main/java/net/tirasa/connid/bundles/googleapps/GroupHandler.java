@@ -23,10 +23,13 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
-import java.io.IOException;
+import com.google.api.services.admin.directory.Directory;
+import com.google.api.services.admin.directory.model.Group;
+import com.google.api.services.admin.directory.model.Member;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
+import java.io.IOException;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
@@ -50,6 +53,7 @@ import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesF
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EndsWithFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
+import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterVisitor;
 import org.identityconnectors.framework.common.objects.filter.GreaterThanFilter;
@@ -59,10 +63,6 @@ import org.identityconnectors.framework.common.objects.filter.LessThanOrEqualFil
 import org.identityconnectors.framework.common.objects.filter.NotFilter;
 import org.identityconnectors.framework.common.objects.filter.OrFilter;
 import org.identityconnectors.framework.common.objects.filter.StartsWithFilter;
-import com.google.api.services.admin.directory.Directory;
-import com.google.api.services.admin.directory.model.Group;
-import com.google.api.services.admin.directory.model.Member;
-import org.identityconnectors.framework.common.objects.filter.EqualsIgnoreCaseFilter;
 
 /**
  * A GroupHandler is a util class to cover all Group related operations.
@@ -79,13 +79,13 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     private static final Escaper STRING_ESCAPER = Escapers.builder().addEscape('\'', "\\'").build();
 
     @Override
-    public StringBuilder visitAndFilter(Directory.Groups.List list, AndFilter andFilter) {
+    public StringBuilder visitAndFilter(final Directory.Groups.List list, final AndFilter andFilter) {
         throw getException();
     }
 
     @Override
-    public StringBuilder visitContainsFilter(Directory.Groups.List list, ContainsFilter containsFilter) {
-        if (containsFilter.getAttribute().is(GoogleAppsConnector.MEMBERS_ATTR)) {
+    public StringBuilder visitContainsFilter(final Directory.Groups.List list, final ContainsFilter containsFilter) {
+        if (containsFilter.getAttribute().is(GoogleAppsUtil.MEMBERS_ATTR)) {
             list.setUserKey(containsFilter.getValue());
         } else {
             throw getException();
@@ -93,7 +93,9 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         return null;
     }
 
-    protected StringBuilder getStringBuilder(Attribute attribute, char operator, Character postfix, String filedName) {
+    protected StringBuilder getStringBuilder(
+            final Attribute attribute, final char operator, final Character postfix, final String filedName) {
+
         StringBuilder builder = new StringBuilder();
         builder.append(filedName).append(operator);
         String stringValue = AttributeUtil.getAsStringValue(attribute);
@@ -117,7 +119,8 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
 
     @Override
     public StringBuilder visitContainsAllValuesFilter(
-            Directory.Groups.List list, ContainsAllValuesFilter containsAllValuesFilter) {
+            final Directory.Groups.List list, final ContainsAllValuesFilter containsAllValuesFilter) {
+
         throw getException();
     }
 
@@ -127,7 +130,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     @Override
-    public StringBuilder visitEqualsFilter(Directory.Groups.List list, EqualsFilter equalsFilter) {
+    public StringBuilder visitEqualsFilter(final Directory.Groups.List list, final EqualsFilter equalsFilter) {
         if (equalsFilter.getAttribute().is("customer")) {
             if (null != list.getDomain() || null != list.getUserKey()) {
                 throw new InvalidAttributeValueException(
@@ -163,7 +166,9 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     @Override
-    public StringBuilder visitEqualsIgnoreCaseFilter(Directory.Groups.List list, EqualsIgnoreCaseFilter equalsFilter) {
+    public StringBuilder visitEqualsIgnoreCaseFilter(
+            final Directory.Groups.List list, final EqualsIgnoreCaseFilter equalsFilter) {
+
         if (equalsFilter.getAttribute().is("customer")) {
             if (null != list.getDomain() || null != list.getUserKey()) {
                 throw new InvalidAttributeValueException(
@@ -199,50 +204,57 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     @Override
-    public StringBuilder visitExtendedFilter(Directory.Groups.List list, Filter filter) {
+    public StringBuilder visitExtendedFilter(final Directory.Groups.List list, final Filter filter) {
         throw getException();
     }
 
     @Override
-    public StringBuilder visitGreaterThanFilter(Directory.Groups.List list,
-            GreaterThanFilter greaterThanFilter) {
+    public StringBuilder visitGreaterThanFilter(
+            final Directory.Groups.List list, final GreaterThanFilter greaterThanFilter) {
+
         throw getException();
     }
 
     @Override
-    public StringBuilder visitGreaterThanOrEqualFilter(Directory.Groups.List list,
-            GreaterThanOrEqualFilter greaterThanOrEqualFilter) {
+    public StringBuilder visitGreaterThanOrEqualFilter(
+            final Directory.Groups.List list, final GreaterThanOrEqualFilter greaterThanOrEqualFilter) {
+
         throw getException();
     }
 
     @Override
-    public StringBuilder visitLessThanFilter(Directory.Groups.List list, LessThanFilter lessThanFilter) {
+    public StringBuilder visitLessThanFilter(
+            final Directory.Groups.List list, final LessThanFilter lessThanFilter) {
+
         throw getException();
     }
 
     @Override
-    public StringBuilder visitLessThanOrEqualFilter(Directory.Groups.List list,
-            LessThanOrEqualFilter lessThanOrEqualFilter) {
+    public StringBuilder visitLessThanOrEqualFilter(
+            final Directory.Groups.List list, final LessThanOrEqualFilter lessThanOrEqualFilter) {
+
         throw getException();
     }
 
     @Override
-    public StringBuilder visitNotFilter(Directory.Groups.List list, NotFilter notFilter) {
+    public StringBuilder visitNotFilter(final Directory.Groups.List list, final NotFilter notFilter) {
         throw getException();
     }
 
     @Override
-    public StringBuilder visitOrFilter(Directory.Groups.List list, OrFilter orFilter) {
+    public StringBuilder visitOrFilter(final Directory.Groups.List list, final OrFilter orFilter) {
         throw getException();
     }
 
     @Override
-    public StringBuilder visitStartsWithFilter(Directory.Groups.List list, StartsWithFilter startsWithFilter) {
+    public StringBuilder visitStartsWithFilter(
+            final Directory.Groups.List list, final StartsWithFilter startsWithFilter) {
+
         throw getException();
     }
 
     @Override
-    public StringBuilder visitEndsWithFilter(Directory.Groups.List list, EndsWithFilter endsWithFilter) {
+    public StringBuilder visitEndsWithFilter(final Directory.Groups.List list, final EndsWithFilter endsWithFilter) {
         throw getException();
     }
 
@@ -276,21 +288,21 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         builder.setType(ObjectClass.GROUP_NAME);
         // email
         builder.addAttributeInfo(Name.INFO);
-        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.NAME_ATTR));
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.NAME_ATTR));
         builder.addAttributeInfo(PredefinedAttributeInfos.DESCRIPTION);
 
         // Read-only
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ADMIN_CREATED_ATTR, Boolean.TYPE).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.ADMIN_CREATED_ATTR, Boolean.TYPE).
                 setUpdateable(false).setCreateable(false).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.ALIASES_ATTR).setUpdateable(false).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.ALIASES_ATTR).setUpdateable(false).
                 setCreateable(false).setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.NON_EDITABLE_ALIASES_ATTR).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.NON_EDITABLE_ALIASES_ATTR).
                 setUpdateable(false).setCreateable(false).setMultiValued(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.DIRECT_MEMBERS_COUNT_ATTR, Long.TYPE).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.DIRECT_MEMBERS_COUNT_ATTR, Long.TYPE).
                 setUpdateable(false).setCreateable(false).build());
 
         // Virtual Attribute
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.MEMBERS_ATTR).setMultiValued(true).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.MEMBERS_ATTR).setMultiValued(true).
                 setReturnedByDefault(false).build());
 
         return builder.build();
@@ -304,33 +316,35 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
          */
         // @formatter:on
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
-        builder.setType(GoogleAppsConnector.MEMBER.getObjectClassValue());
+        builder.setType(GoogleAppsUtil.MEMBER.getObjectClassValue());
         builder.addAttributeInfo(AttributeInfoBuilder.define(Name.NAME).setUpdateable(false).
                 setCreateable(false)/* .setRequired(true) */.build());
 
         // optional
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.GROUP_KEY_ATTR).setUpdateable(false).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.GROUP_KEY_ATTR).setUpdateable(false).
                 setRequired(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.EMAIL_ATTR).setUpdateable(false).
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.EMAIL_ATTR).setUpdateable(false).
                 setRequired(true).build());
 
-        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsConnector.ROLE_ATTR));
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsConnector.TYPE_ATTR).setUpdateable(false).
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.ROLE_ATTR));
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.TYPE_ATTR).setUpdateable(false).
                 setCreateable(false).build());
 
         return builder.build();
     }
 
     // https://support.google.com/a/answer/33386
-    public static Directory.Groups.Insert createGroup(Directory.Groups groups, AttributesAccessor attributes) {
+    public static Directory.Groups.Insert createGroup(
+            final Directory.Groups groups, final AttributesAccessor attributes) {
+
         Group group = new Group();
         group.setEmail(GoogleAppsUtil.getName(attributes.getName()));
         // Optional
         group.setDescription(attributes.findString(PredefinedAttributes.DESCRIPTION));
-        group.setName(attributes.findString(GoogleAppsConnector.NAME_ATTR));
+        group.setName(attributes.findString(GoogleAppsUtil.NAME_ATTR));
 
         try {
-            return groups.insert(group).setFields(GoogleAppsConnector.ID_EMAIL_ETAG);
+            return groups.insert(group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
@@ -339,7 +353,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     public static Directory.Groups.Patch updateGroup(
-            Directory.Groups groups, String groupKey, AttributesAccessor attributes) {
+            final Directory.Groups groups, final String groupKey, final AttributesAccessor attributes) {
 
         Group group = null;
 
@@ -367,7 +381,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
                 group.setDescription(stringValue);
             }
         }
-        Attribute name = attributes.find(GoogleAppsConnector.NAME_ATTR);
+        Attribute name = attributes.find(GoogleAppsUtil.NAME_ATTR);
         if (null != name) {
             String stringValue = GoogleAppsUtil.getStringValueWithDefault(name, null);
             if (null != stringValue) {
@@ -382,7 +396,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
             return null;
         }
         try {
-            return groups.patch(groupKey, group).setFields(GoogleAppsConnector.ID_ETAG);
+            return groups.patch(groupKey, group).setFields(GoogleAppsUtil.ID_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Patch");
@@ -390,27 +404,29 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
     }
 
-    public static Directory.Members.Insert createMember(Directory.Members service, AttributesAccessor attributes) {
-        String groupKey = attributes.findString(GoogleAppsConnector.GROUP_KEY_ATTR);
+    public static Directory.Members.Insert createMember(
+            final Directory.Members service, final AttributesAccessor attributes) {
+
+        String groupKey = attributes.findString(GoogleAppsUtil.GROUP_KEY_ATTR);
         if (StringUtil.isBlank(groupKey)) {
             throw new InvalidAttributeValueException(
                     "Missing required attribute 'groupKey'. "
                     + "Identifies the group in the API request. Required when creating a Member.");
         }
 
-        String memberKey = attributes.findString(GoogleAppsConnector.EMAIL_ATTR);
+        String memberKey = attributes.findString(GoogleAppsUtil.EMAIL_ATTR);
         if (StringUtil.isBlank(memberKey)) {
             throw new InvalidAttributeValueException(
                     "Missing required attribute 'memberKey'. "
                     + "Identifies the group member in the API request. Required when creating a Member.");
         }
-        String role = attributes.findString(GoogleAppsConnector.ROLE_ATTR);
+        String role = attributes.findString(GoogleAppsUtil.ROLE_ATTR);
 
         return createMember(service, groupKey, memberKey, role);
     }
 
     public static Directory.Members.Insert createMember(
-            Directory.Members service, String groupKey, String memberKey, String role) {
+            final Directory.Members service, final String groupKey, final String memberKey, final String role) {
 
         Member content = new Member();
         content.setEmail(memberKey);
@@ -421,7 +437,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
             content.setRole(role);
         }
         try {
-            return service.insert(groupKey, content).setFields(GoogleAppsConnector.EMAIL_ETAG);
+            return service.insert(groupKey, content).setFields(GoogleAppsUtil.EMAIL_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Members#Insert");
             throw ConnectorException.wrap(e);
@@ -429,7 +445,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     public static Directory.Members.Patch updateMembers(
-            Directory.Members service, String groupKey, String memberKey, String role) {
+            final Directory.Members service, final String groupKey, final String memberKey, final String role) {
 
         Member content = new Member();
         content.setEmail(memberKey);
@@ -441,7 +457,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
             content.setRole(role);
         }
         try {
-            return service.patch(groupKey, memberKey, content).setFields(GoogleAppsConnector.EMAIL_ETAG);
+            return service.patch(groupKey, memberKey, content).setFields(GoogleAppsUtil.EMAIL_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Members#Update");
             throw ConnectorException.wrap(e);
@@ -449,7 +465,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     public static Directory.Members.Delete deleteMembers(
-            Directory.Members service, String groupKey, String memberKey) {
+            final Directory.Members service, final String groupKey, final String memberKey) {
 
         try {
             return service.delete(groupKey, memberKey);
@@ -459,23 +475,23 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
     }
 
-    public static ConnectorObject fromMember(String groupKey, Member content) {
+    public static ConnectorObject fromMember(final String groupKey, final Member content) {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
-        builder.setObjectClass(GoogleAppsConnector.MEMBER);
+        builder.setObjectClass(GoogleAppsUtil.MEMBER);
 
         Uid uid = generateMemberId(groupKey, content);
         builder.setUid(uid);
         builder.setName(uid.getUidValue());
 
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsConnector.GROUP_KEY_ATTR, content.getId()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsConnector.EMAIL_ATTR, content.getEmail()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsConnector.ROLE_ATTR, content.getRole()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsConnector.TYPE_ATTR, content.getType()));
+        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.GROUP_KEY_ATTR, content.getId()));
+        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.EMAIL_ATTR, content.getEmail()));
+        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ROLE_ATTR, content.getRole()));
+        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.TYPE_ATTR, content.getType()));
 
         return builder.build();
     }
 
-    public static Uid generateMemberId(String groupKey, Member content) {
+    public static Uid generateMemberId(final String groupKey, final Member content) {
         String memberName = groupKey + '/' + content.getEmail();
 
         Uid uid;

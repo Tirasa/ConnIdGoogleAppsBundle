@@ -35,6 +35,9 @@ import com.google.api.services.licensing.Licensing;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
@@ -44,9 +47,6 @@ import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.spi.AbstractConfiguration;
 import org.identityconnectors.framework.spi.ConfigurationProperty;
 import org.identityconnectors.framework.spi.StatefulConfiguration;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Extends the {@link AbstractConfiguration} class to provide all the necessary
@@ -103,7 +103,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         return domain;
     }
 
-    public void setDomain(String domain) {
+    public void setDomain(final String domain) {
         this.domain = domain;
     }
 
@@ -114,7 +114,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         return clientId;
     }
 
-    public void setClientId(String clientId) {
+    public void setClientId(final String clientId) {
         this.clientId = clientId;
     }
 
@@ -125,7 +125,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         return clientSecret;
     }
 
-    public void setClientSecret(GuardedString clientSecret) {
+    public void setClientSecret(final GuardedString clientSecret) {
         this.clientSecret = clientSecret;
     }
 
@@ -136,7 +136,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         return refreshToken;
     }
 
-    public void setRefreshToken(GuardedString refreshToken) {
+    public void setRefreshToken(final GuardedString refreshToken) {
         this.refreshToken = refreshToken;
     }
 
