@@ -45,8 +45,6 @@ import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
-import org.identityconnectors.framework.common.objects.PredefinedAttributeInfos;
-import org.identityconnectors.framework.common.objects.PredefinedAttributes;
 import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.AndFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
@@ -289,7 +287,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         // email
         builder.addAttributeInfo(Name.INFO);
         builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.NAME_ATTR));
-        builder.addAttributeInfo(PredefinedAttributeInfos.DESCRIPTION);
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.DESCRIPTION_ATTR));
 
         // Read-only
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.ADMIN_CREATED_ATTR, Boolean.TYPE).
@@ -340,7 +338,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         Group group = new Group();
         group.setEmail(GoogleAppsUtil.getName(attributes.getName()));
         // Optional
-        group.setDescription(attributes.findString(PredefinedAttributes.DESCRIPTION));
+        group.setDescription(attributes.findString(GoogleAppsUtil.DESCRIPTION_ATTR));
         group.setName(attributes.findString(GoogleAppsUtil.NAME_ATTR));
 
         try {
@@ -371,7 +369,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
             }
         }
 
-        Attribute description = attributes.find(PredefinedAttributes.DESCRIPTION);
+        Attribute description = attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR);
         if (null != description) {
             String stringValue = GoogleAppsUtil.getStringValueWithDefault(description, null);
             if (null != stringValue) {
@@ -396,7 +394,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
             return null;
         }
         try {
-            return groups.patch(groupKey, group).setFields(GoogleAppsUtil.ID_ETAG);
+            return groups.patch(groupKey, group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Patch");

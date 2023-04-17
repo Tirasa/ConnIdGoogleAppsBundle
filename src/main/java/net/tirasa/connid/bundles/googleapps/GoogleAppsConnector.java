@@ -1107,7 +1107,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             }
         }
 
-        if (AttributeUtil.namesEqual(PredefinedAttributes.DESCRIPTION, attributeName)) {
+        if (AttributeUtil.namesEqual(GoogleAppsUtil.DESCRIPTION_ATTR, attributeName)) {
             return GoogleAppsUtil.DESCRIPTION_ATTR;
         }
 
@@ -1169,7 +1169,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     ? customSchemaNames(configuration.getCustomSchemasJSON())
                     : new ArrayList<>();
             for (String attribute : options.getAttributesToGet()) {
-                if (AttributeUtil.namesEqual(PredefinedAttributes.DESCRIPTION, attribute)) {
+                if (AttributeUtil.namesEqual(GoogleAppsUtil.DESCRIPTION_ATTR, attribute)) {
                     attributes.add(GoogleAppsUtil.DESCRIPTION_ATTR);
                 } else if (AttributeUtil.isSpecialName(attribute)) {
                     // nothing to do
@@ -1365,8 +1365,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     @Override
                     public Uid handleResult(final Directory.Groups.Patch request, final Group value) {
-                        LOG.ok("Group is Updated:{0}", value.getId());
-                        return new Uid(value.getId(), value.getEtag());
+                        LOG.ok("Group is Updated:{0}", value.getEmail());
+                        return new Uid(value.getEmail(), value.getEtag());
                     }
                 });
             }
@@ -1725,8 +1725,8 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.EMAIL_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.EMAIL_ATTR, group.getEmail()));
         }
-        if (null == attributesToGet || attributesToGet.contains(PredefinedAttributes.DESCRIPTION)) {
-            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.DESCRIPTION, group.getDescription()));
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.DESCRIPTION_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.DESCRIPTION_ATTR, group.getDescription()));
         }
 
         if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ADMIN_CREATED_ATTR)) {
