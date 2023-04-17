@@ -43,7 +43,6 @@ import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.PredefinedAttributeInfos;
-import org.identityconnectors.framework.common.objects.PredefinedAttributes;
 import org.identityconnectors.framework.common.objects.Uid;
 
 /**
@@ -104,7 +103,7 @@ public final class OrgunitsHandler {
 
         // Optional
         resource.setBlockInheritance(attributes.findBoolean(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR));
-        resource.setDescription(attributes.findString(PredefinedAttributes.DESCRIPTION));
+        resource.setDescription(attributes.findString(GoogleAppsUtil.DESCRIPTION_ATTR));
 
         try {
             return service.
@@ -138,7 +137,7 @@ public final class OrgunitsHandler {
             resource.setParentOrgUnitPath(parentOrgUnitPath);
         }
 
-        Attribute description = attributes.find(PredefinedAttributes.DESCRIPTION);
+        Attribute description = attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR);
         if (null != description) {
             if (null == resource) {
                 resource = new OrgUnit();
@@ -184,8 +183,8 @@ public final class OrgunitsHandler {
         builder.setName(content.getName());
 
         // Optional
-        if (null == attributesToGet || attributesToGet.contains(PredefinedAttributes.DESCRIPTION)) {
-            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.DESCRIPTION, content.getDescription()));
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.DESCRIPTION_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.DESCRIPTION_ATTR, content.getDescription()));
         }
         if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ORG_UNIT_PATH_ATTR)) {
             builder.addAttribute(AttributeBuilder.build(
