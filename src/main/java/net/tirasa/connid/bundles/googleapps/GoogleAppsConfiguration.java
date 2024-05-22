@@ -43,7 +43,6 @@ import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.common.security.SecurityUtil;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
-import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.spi.AbstractConfiguration;
 import org.identityconnectors.framework.spi.ConfigurationProperty;
 import org.identityconnectors.framework.spi.StatefulConfiguration;
@@ -66,6 +65,8 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
      */
     private static final JsonFactory JSON_FACTORY = new GsonFactory();
 
+    private static final String APPLICATION_NAME = "ConnId";
+
     private String domain = null;
 
     /**
@@ -80,7 +81,7 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     private GuardedString refreshToken = null;
 
-    private GoogleCredentials credentials = null;
+    private GoogleCredentials googleCredentials = null;
 
     private Directory directory;
 
@@ -222,52 +223,55 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         }
     }
 
-    public void getGoogleCredential() {
+    private void initGoogleCredentials() {
         synchronized (this) {
-            if (null == credentials) {
-                final UserCredentials.Builder credentialsBuilder =
-                        UserCredentials.newBuilder()
-                                .setClientId(getClientId())
-                                .setClientSecret(SecurityUtil.decrypt(getClientSecret()));
+            if (null == googleCredentials) {
+                UserCredentials.Builder credentialsBuilder = UserCredentials.newBuilder()
+                        .setClientId(getClientId())
+                        .setClientSecret(SecurityUtil.decrypt(getClientSecret()));
 
                 getRefreshToken().access(chars -> credentialsBuilder.setRefreshToken(new String(chars)));
 
-                final UserCredentials userCredentials = credentialsBuilder.build();
-                credentials = userCredentials.createScoped(
-                        Arrays.asList(DirectoryScopes.ADMIN_DIRECTORY_USER,
-                                DirectoryScopes.ADMIN_DIRECTORY_USER_ALIAS,
-                                DirectoryScopes.ADMIN_DIRECTORY_USERSCHEMA,
-                                DirectoryScopes.ADMIN_DIRECTORY_ORGUNIT,
-                                DirectoryScopes.ADMIN_DIRECTORY_DOMAIN,
-                                DirectoryScopes.ADMIN_DIRECTORY_NOTIFICATIONS,
-                                DirectoryScopes.ADMIN_DIRECTORY_GROUP,
-                                DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
+                UserCredentials userCredentials = credentialsBuilder.build();
 
-                HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+                googleCredentials = userCredentials.createScoped(Arrays.asList(
+                        DirectoryScopes.ADMIN_DIRECTORY_USER,
+                        DirectoryScopes.ADMIN_DIRECTORY_USER_ALIAS,
+                        DirectoryScopes.ADMIN_DIRECTORY_USERSCHEMA,
+                        DirectoryScopes.ADMIN_DIRECTORY_ORGUNIT,
+                        DirectoryScopes.ADMIN_DIRECTORY_DOMAIN,
+                        DirectoryScopes.ADMIN_DIRECTORY_NOTIFICATIONS,
+                        DirectoryScopes.ADMIN_DIRECTORY_GROUP,
+                        DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
+
+                HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(googleCredentials);
                 directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
-                        setApplicationName("ConnId").
+                        setApplicationName(APPLICATION_NAME).
                         build();
                 licensing = new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
-                        setApplicationName("ConnId").
+                        setApplicationName(APPLICATION_NAME).
                         build();
             }
         }
     }
 
+    public void test() throws IOException {
+        initGoogleCredentials();
+        googleCredentials.refreshIfExpired();
+    }
+
     @Override
     public void release() {
+        googleCredentials = null;
     }
 
     public Directory getDirectory() {
-        getGoogleCredential();
+        initGoogleCredentials();
         return directory;
     }
 
     public Licensing getLicensing() {
-        getGoogleCredential();
-        if (null == licensing) {
-            throw new ConnectorException("Licensing is not enabled");
-        }
+        initGoogleCredentials();
         return licensing;
     }
 }

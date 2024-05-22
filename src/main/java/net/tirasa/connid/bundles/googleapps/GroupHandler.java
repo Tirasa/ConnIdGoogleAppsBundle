@@ -25,27 +25,25 @@ package net.tirasa.connid.bundles.googleapps;
 
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.Group;
-import com.google.api.services.admin.directory.model.Member;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
-import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
-import org.identityconnectors.framework.common.objects.ConnectorObject;
-import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
-import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.AndFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
@@ -261,7 +259,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     // GROUP
     //
     // /////////////
-    public static ObjectClassInfo getGroupClassInfo() {
+    public static ObjectClassInfo getObjectClassInfo() {
         // @formatter:off
         /* GROUP from https://devsite.googleplex.com/admin-sdk/directory/v1/reference/groups#resource
          * {
@@ -306,34 +304,9 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         return builder.build();
     }
 
-    public static ObjectClassInfo getMemberClassInfo() {
-        // @formatter:off
-        /*
-         * {
-         * }
-         */
-        // @formatter:on
-        ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
-        builder.setType(GoogleAppsUtil.MEMBER.getObjectClassValue());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(Name.NAME).setUpdateable(false).
-                setCreateable(false)/* .setRequired(true) */.build());
-
-        // optional
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.GROUP_KEY_ATTR).setUpdateable(false).
-                setRequired(true).build());
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.EMAIL_ATTR).setUpdateable(false).
-                setRequired(true).build());
-
-        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.ROLE_ATTR));
-        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.TYPE_ATTR).setUpdateable(false).
-                setCreateable(false).build());
-
-        return builder.build();
-    }
-
     // https://support.google.com/a/answer/33386
-    public static Directory.Groups.Insert createGroup(
-            final Directory.Groups groups, final AttributesAccessor attributes) {
+    public static Directory.Groups.Insert create(
+            final Directory.Groups service, final AttributesAccessor attributes) {
 
         Group group = new Group();
         group.setEmail(GoogleAppsUtil.getName(attributes.getName()));
@@ -342,7 +315,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         group.setName(attributes.findString(GoogleAppsUtil.NAME_ATTR));
 
         try {
-            return groups.insert(group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
+            return service.insert(group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
@@ -350,154 +323,41 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
     }
 
-    public static Directory.Groups.Patch updateGroup(
-            final Directory.Groups groups, final String groupKey, final AttributesAccessor attributes) {
-
-        Group group = null;
-
-        Name email = attributes.getName();
-        if (email != null) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(email, null);
-            if (null != stringValue) {
-                if (StringUtil.isBlank(stringValue)) {
-                    throw new InvalidAttributeValueException(
-                            "Invalid attribute '__NAME__'. The group's email address. "
-                            + "Can not be blank when updating a group.");
-                }
-                group = new Group();
-                group.setEmail(stringValue);
-            }
+    private static void set(final AtomicReference<Group> content, final Consumer<Group> consumer) {
+        if (content.get() == null) {
+            content.set(new Group());
         }
+        consumer.accept(content.get());
+    }
 
-        Attribute description = attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR);
-        if (null != description) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(description, null);
-            if (null != stringValue) {
-                if (null == group) {
-                    group = new Group();
-                }
-                group.setDescription(stringValue);
-            }
-        }
-        Attribute name = attributes.find(GoogleAppsUtil.NAME_ATTR);
-        if (null != name) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(name, null);
-            if (null != stringValue) {
-                if (null == group) {
-                    group = new Group();
-                }
-                group.setName(stringValue);
-            }
-        }
+    public static Directory.Groups.Patch update(
+            final Directory.Groups service,
+            final String groupKey,
+            final AttributesAccessor attributes) {
 
-        if (null == group) {
+        AtomicReference<Group> content = new AtomicReference<>();
+
+        Optional.ofNullable(attributes.getName())
+                .filter(email -> !StringUtil.isBlank(email.getNameValue()))
+                .ifPresent(email -> set(content, g -> g.setEmail(email.getNameValue())));
+
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.NAME_ATTR))
+                .flatMap(name -> GoogleAppsUtil.getStringValue(name))
+                .ifPresent(stringValue -> set(content, g -> g.setName(stringValue)));
+
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR))
+                .flatMap(description -> GoogleAppsUtil.getStringValue(description))
+                .ifPresent(stringValue -> set(content, g -> g.setDescription(stringValue)));
+
+        if (null == content.get()) {
             return null;
         }
         try {
-            return groups.patch(groupKey, group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
+            return service.patch(groupKey, content.get()).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
             // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Patch");
             throw ConnectorException.wrap(e);
         }
-    }
-
-    public static Directory.Members.Insert createMember(
-            final Directory.Members service, final AttributesAccessor attributes) {
-
-        String groupKey = attributes.findString(GoogleAppsUtil.GROUP_KEY_ATTR);
-        if (StringUtil.isBlank(groupKey)) {
-            throw new InvalidAttributeValueException(
-                    "Missing required attribute 'groupKey'. "
-                    + "Identifies the group in the API request. Required when creating a Member.");
-        }
-
-        String memberKey = attributes.findString(GoogleAppsUtil.EMAIL_ATTR);
-        if (StringUtil.isBlank(memberKey)) {
-            throw new InvalidAttributeValueException(
-                    "Missing required attribute 'memberKey'. "
-                    + "Identifies the group member in the API request. Required when creating a Member.");
-        }
-        String role = attributes.findString(GoogleAppsUtil.ROLE_ATTR);
-
-        return createMember(service, groupKey, memberKey, role);
-    }
-
-    public static Directory.Members.Insert createMember(
-            final Directory.Members service, final String groupKey, final String memberKey, final String role) {
-
-        Member content = new Member();
-        content.setEmail(memberKey);
-        if (StringUtil.isBlank(role)) {
-            content.setRole("MEMBER");
-        } else {
-            // OWNER. MANAGER. MEMBER.
-            content.setRole(role);
-        }
-        try {
-            return service.insert(groupKey, content).setFields(GoogleAppsUtil.EMAIL_ETAG);
-        } catch (IOException e) {
-            LOG.warn(e, "Failed to initialize Members#Insert");
-            throw ConnectorException.wrap(e);
-        }
-    }
-
-    public static Directory.Members.Patch updateMembers(
-            final Directory.Members service, final String groupKey, final String memberKey, final String role) {
-
-        Member content = new Member();
-        content.setEmail(memberKey);
-
-        if (StringUtil.isBlank(role)) {
-            content.setRole("MEMBER");
-        } else {
-            // OWNER. MANAGER. MEMBER.
-            content.setRole(role);
-        }
-        try {
-            return service.patch(groupKey, memberKey, content).setFields(GoogleAppsUtil.EMAIL_ETAG);
-        } catch (IOException e) {
-            LOG.warn(e, "Failed to initialize Members#Update");
-            throw ConnectorException.wrap(e);
-        }
-    }
-
-    public static Directory.Members.Delete deleteMembers(
-            final Directory.Members service, final String groupKey, final String memberKey) {
-
-        try {
-            return service.delete(groupKey, memberKey);
-        } catch (IOException e) {
-            LOG.warn(e, "Failed to initialize Members#Delete");
-            throw ConnectorException.wrap(e);
-        }
-    }
-
-    public static ConnectorObject fromMember(final String groupKey, final Member content) {
-        ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
-        builder.setObjectClass(GoogleAppsUtil.MEMBER);
-
-        Uid uid = generateMemberId(groupKey, content);
-        builder.setUid(uid);
-        builder.setName(uid.getUidValue());
-
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.GROUP_KEY_ATTR, content.getId()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.EMAIL_ATTR, content.getEmail()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ROLE_ATTR, content.getRole()));
-        builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.TYPE_ATTR, content.getType()));
-
-        return builder.build();
-    }
-
-    public static Uid generateMemberId(final String groupKey, final Member content) {
-        String memberName = groupKey + '/' + content.getEmail();
-
-        Uid uid;
-        if (null != content.getEtag()) {
-            uid = new Uid(memberName, content.getEtag());
-        } else {
-            uid = new Uid(memberName);
-        }
-        return uid;
     }
 }

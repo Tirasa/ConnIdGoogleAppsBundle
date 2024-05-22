@@ -88,8 +88,8 @@ import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.common.objects.filter.StartsWithFilter;
 import org.identityconnectors.framework.spi.Configuration;
-import org.identityconnectors.framework.spi.Connector;
 import org.identityconnectors.framework.spi.ConnectorClass;
+import org.identityconnectors.framework.spi.PoolableConnector;
 import org.identityconnectors.framework.spi.SearchResultsHandler;
 import org.identityconnectors.framework.spi.operations.CreateOp;
 import org.identityconnectors.framework.spi.operations.DeleteOp;
@@ -102,8 +102,10 @@ import org.identityconnectors.framework.spi.operations.UpdateOp;
  * Main implementation of the GoogleApps Connector.
  */
 @ConnectorClass(displayNameKey = "GoogleApps.connector.display", configurationClass = GoogleAppsConfiguration.class)
-public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, SchemaOp,
-        SearchOp<Filter>, TestOp, UpdateOp {
+public class GoogleAppsConnector
+        implements PoolableConnector,
+        TestOp, SchemaOp, SearchOp<Filter>,
+        CreateOp, UpdateOp, DeleteOp {
 
     /**
      * Setup logging for the {@link GoogleAppsConnector}.
@@ -171,13 +173,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
 
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            Uid uid = execute(UserHandler.createUser(configuration.getDirectory().users(), accessor, configuration.
-                    getCustomSchemasJSON()),
+            Uid uid = execute(UserHandler.createUser(
+                    configuration.getDirectory().users(), accessor, configuration.getCustomSchemasJSON()),
                     new RequestResultHandler<Directory.Users.Insert, User, Uid>() {
 
                 @Override
-                public Uid handleResult(final Directory.Users.Insert request,
-                        final User value) {
+                public Uid handleResult(final Directory.Users.Insert request, final User value) {
                     LOG.ok("New User is created: {0}", value.getId());
                     return new Uid(value.getId(), value.getEtag());
                 }
@@ -230,13 +231,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     if (null == id) {
                         // TODO make warn about failed update
                     }
-
                 } else if (null != photoObject) {
                     // Delete group and Error or
-                    RetryableException e = RetryableException.wrap("Invalid attribute value: "
-                            + String.valueOf(photoObject), uid);
-                    e.initCause(new InvalidAttributeValueException(
-                            "Attribute 'photo' must be a single Map value"));
+                    RetryableException e = RetryableException.wrap(
+                            "Invalid attribute value: " + String.valueOf(photoObject), uid);
+                    e.initCause(new InvalidAttributeValueException("Attribute 'photo' must be a single byte[] value"));
                     throw e;
                 }
             }
@@ -279,7 +278,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
              * }
              */
             // @formatter:on
-            Uid uid = execute(GroupHandler.createGroup(configuration.getDirectory().groups(), accessor),
+            Uid uid = execute(GroupHandler.create(configuration.getDirectory().groups(), accessor),
                     new RequestResultHandler<Directory.Groups.Insert, Group, Uid>() {
 
                 @Override
@@ -297,7 +296,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         String email = (String) ((Map) member).get(GoogleAppsUtil.EMAIL_ATTR);
                         String role = (String) ((Map) member).get(GoogleAppsUtil.ROLE_ATTR);
 
-                        String id = execute(GroupHandler.createMember(membersService, uid.getUidValue(), email, role),
+                        String id = execute(MembersHandler.create(membersService, uid.getUidValue(), email, role),
                                 new RequestResultHandler<Directory.Members.Insert, Member, String>() {
 
                             @Override
@@ -322,24 +321,24 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
             return uid;
         } else if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
-            return execute(GroupHandler.createMember(configuration.getDirectory().members(), accessor),
+            return execute(MembersHandler.create(configuration.getDirectory().members(), accessor),
                     new RequestResultHandler<Directory.Members.Insert, Member, Uid>() {
 
                 @Override
                 public Uid handleResult(final Directory.Members.Insert request,
                         final Member value) {
                     LOG.ok("New Member is created:{0}/{1}", request.getGroupKey(), value.getEmail());
-                    return GroupHandler.generateMemberId(request.getGroupKey(), value);
+                    return MembersHandler.generateUid(request.getGroupKey(), value);
                 }
             });
         } else if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
-            return execute(OrgunitsHandler.createOrgunit(configuration.getDirectory().orgunits(), accessor),
+            return execute(OrgunitsHandler.create(configuration.getDirectory().orgunits(), accessor),
                     new RequestResultHandler<Directory.Orgunits.Insert, OrgUnit, Uid>() {
 
                 @Override
                 public Uid handleResult(final Directory.Orgunits.Insert request, final OrgUnit value) {
                     LOG.ok("New OrgUnit is created:{0}", value.getName());
-                    return OrgunitsHandler.generateOrgUnitId(value);
+                    return OrgunitsHandler.generateUid(value);
                 }
             });
         } else if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
@@ -358,7 +357,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             // @formatter:on
 
             return execute(
-                    LicenseAssignmentsHandler.createLicenseAssignment(
+                    LicenseAssignmentsHandler.create(
                             configuration.getLicensing().licenseAssignments(), accessor),
                     new RequestResultHandler<Licensing.LicenseAssignments.Insert, LicenseAssignment, Uid>() {
 
@@ -369,7 +368,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                     LOG.ok("LicenseAssignment is Created:{0}/{1}/{2}",
                             value.getProductId(), value.getSkuId(), value.getUserId());
-                    return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
+                    return LicenseAssignmentsHandler.generateUid(value);
                 }
             });
         } else {
@@ -414,7 +413,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 request = configuration.getDirectory().orgunits().
                         delete(GoogleAppsUtil.MY_CUSTOMER_ID, CollectionUtil.newList(uid.getUidValue()));
             } else if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
-                request = LicenseAssignmentsHandler.deleteLicenseAssignment(
+                request = LicenseAssignmentsHandler.delete(
                         configuration.getLicensing().licenseAssignments(), uid.getUidValue());
             }
         } catch (IOException e) {
@@ -448,19 +447,19 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         if (null == schema) {
             final SchemaBuilder builder = new SchemaBuilder(GoogleAppsConnector.class);
 
-            ObjectClassInfo user = UserHandler.getUserClassInfo(configuration.getCustomSchemasJSON());
+            ObjectClassInfo user = UserHandler.getObjectClassInfo(configuration.getCustomSchemasJSON());
             builder.defineObjectClass(user);
 
-            ObjectClassInfo group = GroupHandler.getGroupClassInfo();
+            ObjectClassInfo group = GroupHandler.getObjectClassInfo();
             builder.defineObjectClass(group);
 
-            ObjectClassInfo member = GroupHandler.getMemberClassInfo();
+            ObjectClassInfo member = MembersHandler.getObjectClassInfo();
             builder.defineObjectClass(member);
 
-            ObjectClassInfo orgUnit = OrgunitsHandler.getOrgunitClassInfo();
+            ObjectClassInfo orgUnit = OrgunitsHandler.getObjectClassInfo();
             builder.defineObjectClass(orgUnit);
 
-            ObjectClassInfo licenseAssignment = LicenseAssignmentsHandler.getLicenseAssignmentClassInfo();
+            ObjectClassInfo licenseAssignment = LicenseAssignmentsHandler.getObjectClassInfo();
             builder.defineObjectClass(licenseAssignment);
 
             builder.defineOperationOption(OperationOptionInfoBuilder.buildAttributesToGet(),
@@ -757,7 +756,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                     final Members value) {
                                 if (null != value.getMembers()) {
                                     for (Member group : value.getMembers()) {
-                                        handler.handle(GroupHandler.fromMember(request.getGroupKey(), group));
+                                        handler.handle(MembersHandler.from(request.getGroupKey(), group));
                                     }
                                 }
                                 return value.getNextPageToken();
@@ -790,7 +789,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                         @Override
                         public Boolean handleResult(final Directory.Members.Get request, final Member value) {
-                            return handler.handle(GroupHandler.fromMember(request.getGroupKey(), value));
+                            return handler.handle(MembersHandler.from(request.getGroupKey(), value));
                         }
 
                         @Override
@@ -848,7 +847,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 final OrgUnits value) {
                             if (null != value.getOrganizationUnits()) {
                                 for (OrgUnit group : value.getOrganizationUnits()) {
-                                    handler.handle(OrgunitsHandler.fromOrgunit(group, attributesToGet));
+                                    handler.handle(OrgunitsHandler.from(group, attributesToGet));
                                 }
                             }
                             return null;
@@ -871,7 +870,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                         @Override
                         public Boolean handleResult(final Directory.Orgunits.Get request, final OrgUnit value) {
-                            return handler.handle(OrgunitsHandler.fromOrgunit(value, attributesToGet));
+                            return handler.handle(OrgunitsHandler.from(value, attributesToGet));
                         }
 
                         @Override
@@ -937,7 +936,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                                 if (null != value.getItems()) {
                                     for (LicenseAssignment resource : value.getItems()) {
-                                        handler.handle(LicenseAssignmentsHandler.fromLicenseAssignment(resource));
+                                        handler.handle(LicenseAssignmentsHandler.from(resource));
                                     }
                                 }
                                 return value.getNextPageToken();
@@ -982,7 +981,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 final Licensing.LicenseAssignments.Get request,
                                 final LicenseAssignment value) {
 
-                            return handler.handle(LicenseAssignmentsHandler.fromLicenseAssignment(value));
+                            return handler.handle(LicenseAssignmentsHandler.from(value));
                         }
 
                         @Override
@@ -1194,7 +1193,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
     @Override
     public void test() {
-        LOG.ok("Test works well");
+        try {
+            configuration.test();
+        } catch (Exception e) {
+            throw new ConnectorException(e);
+        }
+    }
+
+    @Override
+    public void checkAlive() {
+        test();
     }
 
     @Override
@@ -1204,13 +1212,15 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             final Set<Attribute> replaceAttributes,
             final OperationOptions options) {
 
-        final AttributesAccessor attributesAccessor = new AttributesAccessor(replaceAttributes);
+        final AttributesAccessor accessor = new AttributesAccessor(replaceAttributes);
 
         Uid uidAfterUpdate = uid;
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            final Directory.Users.Patch patch =
-                    UserHandler.updateUser(configuration.getDirectory().users(), uid.getUidValue(), attributesAccessor,
-                            configuration.getCustomSchemasJSON());
+            Directory.Users.Patch patch = UserHandler.updateUser(
+                    configuration.getDirectory().users(),
+                    uid.getUidValue(),
+                    accessor,
+                    configuration.getCustomSchemasJSON());
             if (null != patch) {
                 uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
 
@@ -1221,15 +1231,17 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
                 });
             }
-            Attribute groups = attributesAccessor.find(PredefinedAttributes.GROUPS_NAME);
+            Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
             if (null != groups && null != groups.getValue()) {
                 final Directory.Members service = configuration.getDirectory().members();
                 if (groups.getValue().isEmpty()) {
                     // Remove all membership
-                    for (String groupKey : listGroups(configuration.getDirectory().groups(),
-                            uidAfterUpdate.getUidValue())) {
+                    for (String groupKey : listGroups(
+                            configuration.getDirectory().groups(),
+                            uidAfterUpdate.getUidValue(),
+                            configuration.getDomain())) {
 
-                        execute(GroupHandler.deleteMembers(service, groupKey, uidAfterUpdate.getUidValue()),
+                        execute(MembersHandler.delete(service, groupKey, uidAfterUpdate.getUidValue()),
                                 new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
                             @Override
@@ -1246,8 +1258,10 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         });
                     }
                 } else {
-                    final Set<String> activeGroups =
-                            listGroups(configuration.getDirectory().groups(), uidAfterUpdate.getUidValue());
+                    final Set<String> activeGroups = listGroups(
+                            configuration.getDirectory().groups(),
+                            uidAfterUpdate.getUidValue(),
+                            configuration.getDomain());
 
                     final List<Directory.Members.Insert> addGroups = new ArrayList<>();
                     final Set<String> keepGroups = CollectionUtil.newCaseInsensitiveSet();
@@ -1257,13 +1271,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                             if (activeGroups.contains((String) member)) {
                                 keepGroups.add((String) member);
                             } else {
-                                String email = attributesAccessor.getName().getNameValue();
-                                addGroups.add(GroupHandler.createMember(service, (String) member, email, null));
+                                String email = accessor.getName().getNameValue();
+                                addGroups.add(MembersHandler.create(service, (String) member, email, null));
                             }
                         } else if (null != member) {
                             // throw error/revert?
-                            throw new InvalidAttributeValueException(
-                                    "Attribute '__GROUPS__' must be a String list");
+                            throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
                         }
                     }
 
@@ -1287,7 +1300,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     // Delete existing Member object
                     if (activeGroups.removeAll(keepGroups)) {
                         for (String groupKey : activeGroups) {
-                            execute(GroupHandler.deleteMembers(service, groupKey, uidAfterUpdate.getUidValue()),
+                            execute(MembersHandler.delete(service, groupKey, uidAfterUpdate.getUidValue()),
                                     new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
                                 @Override
@@ -1297,8 +1310,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                                 @Override
                                 public Object handleNotFound(final IOException e) {
-                                    // It may be an indirect membership,
-                                    // not able to delete
+                                    // It may be an indirect membership, not able to delete
                                     return null;
                                 }
                             });
@@ -1310,9 +1322,9 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             // license management: if remove license param is true and __ENABLE__ is false perform delete license
             // license read must be performed with the user primaryEmail, userId is not allowed
             if (configuration.getRemoveLicenseOnDisable()
-                    && attributesAccessor.hasAttribute(OperationalAttributes.ENABLE_NAME)
-                    && !attributesAccessor.findBoolean(OperationalAttributes.ENABLE_NAME)
-                    && StringUtil.isNotBlank(attributesAccessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR))) {
+                    && accessor.hasAttribute(OperationalAttributes.ENABLE_NAME)
+                    && !accessor.findBoolean(OperationalAttributes.ENABLE_NAME)
+                    && StringUtil.isNotBlank(accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR))) {
                 for (String skuId : configuration.getSkuIds()) {
                     // 1. retrieve user license
                     try {
@@ -1321,7 +1333,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 configuration.getLicensing().licenseAssignments().get(
                                         configuration.getProductId(),
                                         skuId,
-                                        attributesAccessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
+                                        accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
                         execute(request,
                                 new RequestResultHandler<
                                         Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
@@ -1353,13 +1365,15 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         });
                     } catch (IOException e) {
                         LOG.error(e, "Unable to find license for {0}-{1}-{2}", configuration.getProductId(), skuId,
-                                attributesAccessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
+                                accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
                     }
                 }
             }
         } else if (ObjectClass.GROUP.equals(objectClass)) {
-            final Directory.Groups.Patch patch = GroupHandler.updateGroup(
-                    configuration.getDirectory().groups(), uid.getUidValue(), attributesAccessor);
+            final Directory.Groups.Patch patch = GroupHandler.update(
+                    configuration.getDirectory().groups(),
+                    uid.getUidValue(),
+                    accessor);
             if (null != patch) {
                 uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
 
@@ -1370,13 +1384,13 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     }
                 });
             }
-            Attribute members = attributesAccessor.find(GoogleAppsUtil.MEMBERS_ATTR);
+            Attribute members = accessor.find(GoogleAppsUtil.MEMBERS_ATTR);
             if (null != members && null != members.getValue()) {
                 final Directory.Members service = configuration.getDirectory().members();
                 if (members.getValue().isEmpty()) {
                     // Remove all membership
                     for (Map<String, String> member : listMembers(service, uidAfterUpdate.getUidValue(), null)) {
-                        execute(GroupHandler.deleteMembers(
+                        execute(MembersHandler.delete(
                                 service, uidAfterUpdate.getUidValue(), member.get(GoogleAppsUtil.EMAIL_ATTR)),
                                 new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
@@ -1417,7 +1431,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 if (email.equalsIgnoreCase(a.get(GoogleAppsUtil.EMAIL_ATTR))) {
                                     a.put("keep", null);
                                     if (!role.equalsIgnoreCase(a.get(GoogleAppsUtil.ROLE_ATTR))) {
-                                        patchMembership.add(GroupHandler.updateMembers(
+                                        patchMembership.add(MembersHandler.update(
                                                 service, uidAfterUpdate.getUidValue(), email, role));
                                     }
                                     notMember = false;
@@ -1425,7 +1439,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                                 }
                             }
                             if (notMember) {
-                                addMembership.add(GroupHandler.createMember(
+                                addMembership.add(MembersHandler.create(
                                         service, uidAfterUpdate.getUidValue(), email, role));
                             }
                         } else if (null != member) {
@@ -1466,7 +1480,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     // Delete existing Member object
                     for (Map<String, String> am : activeMembership) {
                         if (!am.containsKey("keep")) {
-                            execute(GroupHandler.deleteMembers(
+                            execute(MembersHandler.delete(
                                     service, uidAfterUpdate.getUidValue(), am.get(GoogleAppsUtil.EMAIL_ATTR)),
                                     new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
@@ -1486,11 +1500,11 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 }
             }
         } else if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
-            String role = attributesAccessor.findString(GoogleAppsUtil.ROLE_ATTR);
+            String role = accessor.findString(GoogleAppsUtil.ROLE_ATTR);
             if (StringUtil.isNotBlank(role)) {
                 String[] ids = uid.getUidValue().split("/");
                 if (ids.length == 2) {
-                    final Directory.Members.Patch patch = GroupHandler.updateMembers(
+                    final Directory.Members.Patch patch = MembersHandler.update(
                             configuration.getDirectory().members(), ids[0], ids[1], role).
                             setFields(GoogleAppsUtil.EMAIL_ETAG);
                     uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
@@ -1498,7 +1512,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                         @Override
                         public Uid handleResult(final Directory.Members.Patch request, final Member value) {
                             LOG.ok("Member is updated:{0}/{1}", request.getGroupKey(), value.getEmail());
-                            return GroupHandler.generateMemberId(request.getGroupKey(), value);
+                            return MembersHandler.generateUid(request.getGroupKey(), value);
                         }
                     });
                 } else {
@@ -1506,22 +1520,23 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 }
             }
         } else if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
-            final Directory.Orgunits.Patch patch = OrgunitsHandler.updateOrgunit(
-                    configuration.getDirectory().orgunits(), uid.getUidValue(), attributesAccessor);
+            final Directory.Orgunits.Patch patch = OrgunitsHandler.update(
+                    configuration.getDirectory().orgunits(), uid.getUidValue(), accessor);
             if (null != patch) {
                 uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
 
                     @Override
                     public Uid handleResult(final Directory.Orgunits.Patch request, final OrgUnit value) {
                         LOG.ok("OrgUnit is updated:{0}", value.getName());
-                        return OrgunitsHandler.generateOrgUnitId(value);
+                        return OrgunitsHandler.generateUid(value);
                     }
                 });
             }
         } else if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
-            final Licensing.LicenseAssignments.Patch patch =
-                    LicenseAssignmentsHandler.updateLicenseAssignment(
-                            configuration.getLicensing().licenseAssignments(), uid.getUidValue(), attributesAccessor);
+            final Licensing.LicenseAssignments.Patch patch = LicenseAssignmentsHandler.update(
+                    configuration.getLicensing().licenseAssignments(),
+                    uid.getUidValue(),
+                    accessor);
             if (null != patch) {
                 uidAfterUpdate = execute(patch,
                         new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
@@ -1533,7 +1548,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
 
                         LOG.ok("LicenseAssignment is Updated:{0}/{1}/{2}",
                                 value.getProductId(), value.getSkuId(), value.getUserId());
-                        return LicenseAssignmentsHandler.generateLicenseAssignmentId(value);
+                        return LicenseAssignmentsHandler.generateUid(value);
                     }
                 });
             }
@@ -1544,6 +1559,16 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                     + objectClass.getObjectClassValue() + " is not supported");
         }
         return uidAfterUpdate;
+    }
+
+    private static Object getValueFromKey(
+            final String customSchema,
+            final Map<String, Map<String, Object>> customSchemas) {
+
+        String[] names = customSchema.split("\\.");
+        return names.length > 1
+                ? customSchemas.get(names[0]) != null ? customSchemas.get(names[0]).get(names[1]) : null
+                : null;
     }
 
     protected ConnectorObject fromUser(
@@ -1674,15 +1699,12 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
         if (null == attributesToGet || ("full".equals(configuration.getProjection())
                 && StringUtil.isNotBlank(configuration.getCustomSchemasJSON()))) {
-            List<GoogleAppsCustomSchema> customSchemas = GoogleAppsUtil.extractCustomSchemas(configuration.
-                    getCustomSchemasJSON());
-            for (GoogleAppsCustomSchema customSchema : customSchemas) {
+
+            GoogleAppsUtil.extractCustomSchemas(configuration.getCustomSchemasJSON()).forEach(customSchema -> {
                 if (customSchema.getType().equals("object")) {
-                    // parse inner schemas
-                    String basicName = customSchema.getName();
                     // manage only first level inner schemas
                     for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
-                        final String innerSchemaName = basicName + "." + innerSchema.getName();
+                        String innerSchemaName = customSchema.getName() + "." + innerSchema.getName();
                         builder.addAttribute(AttributeBuilder.build(
                                 innerSchemaName,
                                 null != user.getCustomSchemas()
@@ -1692,18 +1714,18 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 } else {
                     LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
                 }
-            }
+            });
         }
         // Expensive to get
         if (null != attributesToGet && attributesToGet.contains(PredefinedAttributes.GROUPS_NAME)) {
-            builder.addAttribute(
-                    AttributeBuilder.build(PredefinedAttributes.GROUPS_NAME, listGroups(service, user.getId())));
+            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.GROUPS_NAME,
+                    listGroups(service, user.getId(), configuration.getDomain())));
         }
 
         return builder.build();
     }
 
-    protected ConnectorObject fromGroup(
+    protected static ConnectorObject fromGroup(
             final Group group,
             final Set<String> attributesToGet,
             final Directory.Members service) {
@@ -1753,7 +1775,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return builder.build();
     }
 
-    protected List<Map<String, String>> listMembers(
+    protected static List<Map<String, String>> listMembers(
             final Directory.Members service, final String groupKey, final String roles) {
 
         final List<Map<String, String>> result = new ArrayList<>();
@@ -1786,7 +1808,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return result;
     }
 
-    protected Set<String> listGroups(final Directory.Groups service, final String userKey) {
+    protected static Set<String> listGroups(final Directory.Groups service, final String userKey, final String domain) {
         final Set<String> result = CollectionUtil.newCaseInsensitiveSet();
         try {
             Directory.Groups.List request = service.list();
@@ -1794,7 +1816,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
             request.setFields("groups/email");
             // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey combination 
             // allowed. request.setCustomer(MY_CUSTOMER_ID);
-            request.setDomain(configuration.getDomain());
+            request.setDomain(domain);
 
             String nextPageToken;
             do {
@@ -1818,7 +1840,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return result;
     }
 
-    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
+    protected static <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
             final G request, final RequestResultHandler<G, T, R> handler) {
 
         return execute(
@@ -1826,7 +1848,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
                 Assertions.nullChecked(handler, "handler"), -1);
     }
 
-    protected <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
+    protected static <G extends AbstractGoogleJsonClientRequest<T>, T, R> R execute(
             final G request, final RequestResultHandler<G, T, R> handler, final int retry) {
 
         try {
@@ -1898,10 +1920,6 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         }
     }
 
-    protected RuntimeException get(final GoogleJsonError.ErrorInfo errorInfo) {
-        return null;
-    }
-
     private static long nextLong(final long n) {
         long bits, val;
         do {
@@ -1911,14 +1929,7 @@ public class GoogleAppsConnector implements Connector, CreateOp, DeleteOp, Schem
         return val;
     }
 
-    private Object getValueFromKey(final String customSchema, final Map<String, Map<String, Object>> customSchemas) {
-        String[] names = customSchema.split("\\.");
-        return names.length > 1
-                ? customSchemas.get(names[0]) != null ? customSchemas.get(names[0]).get(names[1]) : null
-                : null;
-    }
-
-    private List<String> customSchemaNames(final String customSchemasJSON) {
+    private static List<String> customSchemaNames(final String customSchemasJSON) {
         List<GoogleAppsCustomSchema> customSchemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
         List<String> customSchemaNames = new ArrayList<>();
         for (GoogleAppsCustomSchema customSchema : customSchemas) {

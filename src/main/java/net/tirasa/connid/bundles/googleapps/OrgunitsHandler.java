@@ -26,16 +26,17 @@ package net.tirasa.connid.bundles.googleapps;
 import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.OrgUnit;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
-import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
-import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
 import org.identityconnectors.framework.common.objects.ConnectorObject;
 import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
@@ -63,7 +64,7 @@ public final class OrgunitsHandler {
     // https://developers.google.com/admin-sdk/directory/v1/reference/orgunits
     //
     // /////////////
-    public static ObjectClassInfo getOrgunitClassInfo() {
+    public static ObjectClassInfo getObjectClassInfo() {
         // @formatter:off
         /*
          * {
@@ -94,12 +95,42 @@ public final class OrgunitsHandler {
         return builder.build();
     }
 
-    public static Directory.Orgunits.Insert createOrgunit(
+    private static Optional<String> getOrgUnitNameFromPath(final Name name) {
+        if (null == name) {
+            return Optional.empty();
+        }
+        String fullName = name.getNameValue();
+        String[] elements = fullName.split("/");
+        if (elements.length == 0) {
+            return Optional.of(fullName);
+        }
+        return Optional.of(elements[elements.length - 1]);
+    }
+
+    private static String getParentOrgUnitPath(final AttributesAccessor attributes) {
+        // parentOrgUnitPath The organization unit's parent path. For example,
+        // /corp/sales is the parent path for /corp/sales/sales_support organization unit.
+        String parentOrgUnitPath = attributes.findString(GoogleAppsUtil.PARENT_ORG_UNIT_PATH_ATTR);
+        if (StringUtil.isNotBlank(parentOrgUnitPath)) {
+            if (parentOrgUnitPath.charAt(0) != '/') {
+                parentOrgUnitPath = "/" + parentOrgUnitPath;
+            }
+        }
+
+        if (StringUtil.isBlank(parentOrgUnitPath)) {
+            throw new InvalidAttributeValueException(
+                    "Missing required attribute 'parentOrgUnitPath'. "
+                    + "The organization unit's parent path. Required when creating an orgunit.");
+        }
+        return parentOrgUnitPath;
+    }
+
+    public static Directory.Orgunits.Insert create(
             final Directory.Orgunits service, final AttributesAccessor attributes) {
 
         OrgUnit resource = new OrgUnit();
         resource.setParentOrgUnitPath(getParentOrgUnitPath(attributes));
-        resource.setName(getOrgUnitNameFromPath(attributes.getName()));
+        getOrgUnitNameFromPath(attributes.getName()).ifPresent(resource::setName);
 
         // Optional
         resource.setBlockInheritance(attributes.findBoolean(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR));
@@ -115,71 +146,52 @@ public final class OrgunitsHandler {
         }
     }
 
-    public static Directory.Orgunits.Patch updateOrgunit(
+    private static void set(final AtomicReference<OrgUnit> content, final Consumer<OrgUnit> consumer) {
+        if (content.get() == null) {
+            content.set(new OrgUnit());
+        }
+        consumer.accept(content.get());
+    }
+
+    public static Directory.Orgunits.Patch update(
             final Directory.Orgunits service,
             final String orgUnitPath,
             final AttributesAccessor attributes) {
 
-        OrgUnit resource = null;
+        AtomicReference<OrgUnit> content = new AtomicReference<>();
 
-        String orgUnitName = getOrgUnitNameFromPath(attributes.getName());
-        if (null != orgUnitName) {
-            resource = new OrgUnit();
-            // Rename the object
-            resource.setName(orgUnitName);
-        }
+        getOrgUnitNameFromPath(attributes.getName()).ifPresent(name -> set(content, o -> o.setName(name)));
 
-        String parentOrgUnitPath = getParentOrgUnitPath(attributes);
-        if (null != parentOrgUnitPath) {
-            if (null == resource) {
-                resource = new OrgUnit();
-            }
-            resource.setParentOrgUnitPath(parentOrgUnitPath);
-        }
+        Optional.ofNullable(attributes.findString(GoogleAppsUtil.PARENT_ORG_UNIT_PATH_ATTR))
+                .ifPresent(ignore -> set(content, o -> o.setParentOrgUnitPath(getParentOrgUnitPath(attributes))));
 
-        Attribute description = attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR);
-        if (null != description) {
-            if (null == resource) {
-                resource = new OrgUnit();
-            }
-            String stringValue = AttributeUtil.getStringValue(description);
-            if (null == stringValue) {
-                stringValue = GoogleAppsUtil.EMPTY_STRING;
-            }
-            resource.setDescription(stringValue);
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, o -> o.setDescription(stringValue)));
 
-        Attribute blockInheritance = attributes.find(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR);
-        if (null != blockInheritance) {
-            if (null == resource) {
-                resource = new OrgUnit();
-            }
-            Boolean booleanValue = AttributeUtil.getBooleanValue(blockInheritance);
-            if (null == booleanValue) {
-                // The default value is false
-                booleanValue = Boolean.FALSE;
-            }
-            resource.setBlockInheritance(booleanValue);
-        }
+        Optional.ofNullable(attributes.findBoolean(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR))
+                .ifPresent(blockInheritance -> set(content, u -> u.setBlockInheritance(!blockInheritance)));
 
-        if (null == resource) {
+        if (null == content.get()) {
             return null;
         }
         try {
             // Full path of the organization unit
-            return service.patch(GoogleAppsUtil.MY_CUSTOMER_ID, CollectionUtil.newList(orgUnitPath), resource)
-                    .setFields(GoogleAppsUtil.ORG_UNIT_PATH_ETAG);
+            return service.patch(
+                    GoogleAppsUtil.MY_CUSTOMER_ID,
+                    CollectionUtil.newList(orgUnitPath),
+                    content.get()).setFields(GoogleAppsUtil.ORG_UNIT_PATH_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Orgunits#Patch");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static ConnectorObject fromOrgunit(final OrgUnit content, final Set<String> attributesToGet) {
+    public static ConnectorObject from(final OrgUnit content, final Set<String> attributesToGet) {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(GoogleAppsUtil.ORG_UNIT);
 
-        builder.setUid(generateOrgUnitId(content));
+        builder.setUid(generateUid(content));
         builder.setName(content.getName());
 
         // Optional
@@ -202,38 +214,7 @@ public final class OrgunitsHandler {
         return builder.build();
     }
 
-    private static String getParentOrgUnitPath(final AttributesAccessor attributes) {
-        // parentOrgUnitPath The organization unit's parent path. For example,
-        // /corp/sales is the parent path for /corp/sales/sales_support
-        // organization unit.
-        String parentOrgUnitPath = attributes.findString(GoogleAppsUtil.PARENT_ORG_UNIT_PATH_ATTR);
-        if (StringUtil.isNotBlank(parentOrgUnitPath)) {
-            if (parentOrgUnitPath.charAt(0) != '/') {
-                parentOrgUnitPath = "/" + parentOrgUnitPath;
-            }
-        }
-
-        if (parentOrgUnitPath.isEmpty()) {
-            throw new InvalidAttributeValueException(
-                    "Missing required attribute 'parentOrgUnitPath'. "
-                    + "The organization unit's parent path. Required when creating an orgunit.");
-        }
-        return parentOrgUnitPath;
-    }
-
-    private static String getOrgUnitNameFromPath(final Name name) {
-        if (null == name) {
-            return null;
-        }
-        String fullName = name.getNameValue();
-        String[] elements = fullName.split("/");
-        if (elements.length == 0) {
-            return fullName;
-        }
-        return elements[elements.length - 1];
-    }
-
-    public static Uid generateOrgUnitId(final OrgUnit content) {
+    public static Uid generateUid(final OrgUnit content) {
         String orgUnitPath = content.getOrgUnitPath();
         if (orgUnitPath.startsWith("/")) {
             orgUnitPath = orgUnitPath.substring(1);

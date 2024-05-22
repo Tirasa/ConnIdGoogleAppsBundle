@@ -28,6 +28,7 @@ import com.google.api.services.admin.directory.Directory;
 import com.google.api.services.admin.directory.model.Alias;
 import com.google.api.services.admin.directory.model.User;
 import com.google.api.services.admin.directory.model.UserAddress;
+import com.google.api.services.admin.directory.model.UserEmail;
 import com.google.api.services.admin.directory.model.UserExternalId;
 import com.google.api.services.admin.directory.model.UserIm;
 import com.google.api.services.admin.directory.model.UserName;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.identityconnectors.common.CollectionUtil;
@@ -368,7 +370,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
     // USER https://developers.google.com/admin-sdk/directory/v1/reference/users
     //
     // /////////////
-    public static ObjectClassInfo getUserClassInfo(final String customSchemasJSON) {
+    public static ObjectClassInfo getObjectClassInfo(final String customSchemasJSON) {
         // @formatter:off
         /*
          * {
@@ -602,7 +604,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
     // https://support.google.com/a/answer/33386
     public static Directory.Users.Insert createUser(
-            final Directory.Users users,
+            final Directory.Users service,
             final AttributesAccessor attributes,
             final String customSchemas) {
 
@@ -662,11 +664,11 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
 
         // customSchemas
         if (StringUtil.isNotBlank(customSchemas)) {
-            addOrReplaceCustomSchemas(customSchemas, attributes, user);
+            user.setCustomSchemas(buildCustomAttrs(customSchemas, attributes));
         }
 
         try {
-            return users.insert(user).setFields(GoogleAppsUtil.ID_ETAG);
+            return service.insert(user).setFields(GoogleAppsUtil.ID_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
@@ -687,34 +689,6 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    private static void addOrReplaceCustomSchemas(
-            final String customSchemasJSON, final AttributesAccessor attributes, final User user) {
-
-        List<GoogleAppsCustomSchema> schemas = GoogleAppsUtil.extractCustomSchemas(customSchemasJSON);
-        Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
-        for (GoogleAppsCustomSchema customSchema : schemas) {
-            if (customSchema.getType().equals("object")) {
-                // parse inner schemas
-                String basicName = customSchema.getName();
-                // manage only first level inner schemas
-                for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
-                    final String innerSchemaName = basicName + "." + innerSchema.getName();
-                    if (attrsToAdd.containsKey(basicName)) {
-                        attrsToAdd.get(basicName).put(innerSchema.getName(), getValueByType(innerSchema, attributes,
-                                innerSchemaName));
-                    } else {
-                        Map<String, Object> value = new HashMap<>();
-                        value.put(innerSchema.getName(), getValueByType(innerSchema, attributes, innerSchemaName));
-                        attrsToAdd.put(basicName, value);
-                    }
-                }
-            } else {
-                LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
-            }
-            user.setCustomSchemas(attrsToAdd);
-        }
-    }
-
     private static Object getValueByType(
             final GoogleAppsCustomSchema innerSchema,
             final AttributesAccessor attributes,
@@ -725,169 +699,131 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 : attributes.findString(innerSchemaName);
     }
 
+    private static Map<String, Map<String, Object>> buildCustomAttrs(
+            final String customSchemas, final AttributesAccessor attributes) {
+
+        List<GoogleAppsCustomSchema> schemas = GoogleAppsUtil.extractCustomSchemas(customSchemas);
+        Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
+        for (GoogleAppsCustomSchema customSchema : schemas) {
+            if (customSchema.getType().equals("object")) {
+                // parse inner schemas
+                String basicName = customSchema.getName();
+                // manage only first level inner schemas
+                for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                    final String innerSchemaName = basicName + "." + innerSchema.getName();
+                    if (attrsToAdd.containsKey(basicName)) {
+                        attrsToAdd.get(basicName).put(
+                                innerSchema.getName(),
+                                getValueByType(innerSchema, attributes, innerSchemaName));
+                    } else {
+                        Map<String, Object> value = new HashMap<>();
+                        value.put(innerSchema.getName(), getValueByType(innerSchema, attributes, innerSchemaName));
+                        attrsToAdd.put(basicName, value);
+                    }
+                }
+            } else {
+                LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+            }
+        }
+        return attrsToAdd;
+    }
+
+    private static void set(final AtomicReference<User> content, final Consumer<User> consumer) {
+        if (content.get() == null) {
+            content.set(new User());
+        }
+        consumer.accept(content.get());
+    }
+
     public static Directory.Users.Patch updateUser(
-            final Directory.Users users,
+            final Directory.Users service,
             final String userKey,
             final AttributesAccessor attributes,
-            final String customSchemasJSON) {
+            final String customSchemas) {
 
-        User content = null;
+        AtomicReference<User> content = new AtomicReference<>();
 
-        Name email = attributes.getName();
-        if (email != null && email.getNameValue() != null) {
-            content = new User();
-            content.setPrimaryEmail(email.getNameValue());
-        }
+        Optional.ofNullable(attributes.getName())
+                .filter(email -> email.getNameValue() != null)
+                .ifPresent(email -> set(content, u -> u.setPrimaryEmail(email.getNameValue())));
 
-        Attribute givenName = attributes.find(GoogleAppsUtil.GIVEN_NAME_ATTR);
-        if (null != givenName) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(givenName, null);
-            if (null != stringValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setName(new UserName());
-                content.getName().setGivenName(stringValue);
-            }
-        }
+        Optional.ofNullable(attributes.findBoolean(OperationalAttributes.ENABLE_NAME))
+                .ifPresent(enable -> set(content, u -> u.setSuspended(!enable)));
 
-        Attribute familyName = attributes.find(GoogleAppsUtil.FAMILY_NAME_ATTR);
-        if (null != familyName) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(familyName, null);
-            if (null != stringValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                if (null == content.getName()) {
-                    content.setName(new UserName());
-                }
-                content.getName().setFamilyName(stringValue);
-            }
-        }
+        Optional.ofNullable(attributes.getPassword())
+                .ifPresent(password -> set(content, u -> u.setPassword(SecurityUtil.decrypt(password))));
 
-        GuardedString password = attributes.getPassword();
-        if (null != password) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setPassword(SecurityUtil.decrypt(password));
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.GIVEN_NAME_ATTR))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> {
 
-        Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
-        if (null != enable) {
-            if (null == content) {
-                content = new User();
-            }
+            u.setName(new UserName());
+            u.getName().setGivenName(stringValue);
+        }));
 
-            content.setSuspended(!enable);
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.FAMILY_NAME_ATTR))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> {
 
-        Attribute changePasswordAtNextLogin = attributes.find(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR);
-        if (null != changePasswordAtNextLogin) {
-            Boolean booleanValue =
-                    GoogleAppsUtil.getBooleanValueWithDefault(changePasswordAtNextLogin, null);
-            if (null != booleanValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setChangePasswordAtNextLogin(booleanValue);
-            }
-        }
+            Optional.ofNullable(u.getName()).orElseGet(() -> {
+                u.setName(new UserName());
+                return u.getName();
+            }).setFamilyName(stringValue);
+        }));
 
-        Attribute ipWhitelisted = attributes.find(GoogleAppsUtil.IP_WHITELISTED_ATTR);
-        if (null != ipWhitelisted) {
-            Boolean booleanValue = GoogleAppsUtil.getBooleanValueWithDefault(ipWhitelisted, null);
-            if (null != booleanValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setIpWhitelisted(booleanValue);
-            }
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR))
+                .flatMap(changePasswordAtNextLogin -> GoogleAppsUtil.getBooleanValue(changePasswordAtNextLogin))
+                .ifPresent(booleanValue -> set(content, u -> u.setChangePasswordAtNextLogin(booleanValue)));
 
-        Attribute emails = attributes.find(GoogleAppsUtil.EMAILS_ATTR);
-        if (null != emails) {
-            if (null == content) {
-                content = new User();
-            }
-            content.setEmails(emails.getValue());
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.IP_WHITELISTED_ATTR))
+                .flatMap(ipWhitelisted -> GoogleAppsUtil.getBooleanValue(ipWhitelisted))
+                .ifPresent(booleanValue -> set(content, u -> u.setIpWhitelisted(booleanValue)));
+
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.ORG_UNIT_PATH_ATTR))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> u.setOrgUnitPath(stringValue)));
+
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR))
+                .flatMap(includeInGlobalAddressList -> GoogleAppsUtil.getBooleanValue(includeInGlobalAddressList))
+                .ifPresent(booleanValue -> set(content, u -> u.setIncludeInGlobalAddressList(booleanValue)));
+
         // Complex attributes
-        fillAttr(content, user -> user.setIms(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.IMS_ATTR)).orElse(null), UserIm.class)));
-        fillAttr(content, user -> user.setExternalIds(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.EXTERNAL_IDS_ATTR)).orElse(null), UserExternalId.class)));
-        fillAttr(content, user -> user.setRelations(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.RELATIONS_ATTR)).orElse(null), UserRelation.class)));
-        fillAttr(content, user -> user.setAddresses(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.ADDRESSES_ATTR)).orElse(null), UserAddress.class)));
-        fillAttr(content, user -> user.setOrganizations(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.ORGANIZATIONS_ATTR)).orElse(null), UserOrganization.class)));
-        fillAttr(content, user -> user.setPhones(buildObjs(Optional.ofNullable(attributes.findList(
-                GoogleAppsUtil.PHONES_ATTR)).orElse(null), UserPhone.class)));
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.EMAILS_ATTR))
+                .ifPresent(emails -> set(content, u -> u.setEmails(buildObjs(emails.getValue(), UserEmail.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.IMS_ATTR))
+                .ifPresent(value -> set(content, u -> u.setIms(buildObjs(value, UserIm.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.EXTERNAL_IDS_ATTR))
+                .ifPresent(value -> set(content, u -> u.setExternalIds(buildObjs(value, UserExternalId.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.RELATIONS_ATTR))
+                .ifPresent(value -> set(content, u -> u.setRelations(buildObjs(value, UserRelation.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.ADDRESSES_ATTR))
+                .ifPresent(value -> set(content, u -> u.setAddresses(buildObjs(value, UserAddress.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.ORGANIZATIONS_ATTR))
+                .ifPresent(value -> set(content, u -> u.setOrganizations(buildObjs(value, UserOrganization.class))));
+        Optional.ofNullable(attributes.findList(GoogleAppsUtil.PHONES_ATTR))
+                .ifPresent(value -> set(content, u -> u.setPhones(buildObjs(value, UserPhone.class))));
 
-        Attribute orgUnitPath = attributes.find(GoogleAppsUtil.ORG_UNIT_PATH_ATTR);
-        if (null != orgUnitPath) {
-            String stringValue = GoogleAppsUtil.getStringValueWithDefault(orgUnitPath, null);
-            if (null != stringValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setOrgUnitPath(stringValue);
-            }
+        if (StringUtil.isNotBlank(customSchemas)) {
+            set(content, u -> u.setCustomSchemas(buildCustomAttrs(customSchemas, attributes)));
         }
 
-        Attribute includeInGlobalAddressList = attributes.find(GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR);
-        if (null != includeInGlobalAddressList) {
-            Boolean booleanValue =
-                    GoogleAppsUtil.getBooleanValueWithDefault(includeInGlobalAddressList, null);
-            if (null != booleanValue) {
-                if (null == content) {
-                    content = new User();
-                }
-                content.setIncludeInGlobalAddressList(booleanValue);
-            }
-        }
-
-        // customSchemas
-        if (StringUtil.isNotBlank(customSchemasJSON)) {
-            addOrReplaceCustomSchemas(customSchemasJSON, attributes, content);
-        }
-
-        if (null == content) {
+        if (null == content.get()) {
             return null;
         }
         try {
-            return users.patch(userKey, content).setFields(GoogleAppsUtil.ID_ETAG);
-            // } catch (HttpResponseException e){
+            return service.patch(userKey, content.get()).setFields(GoogleAppsUtil.ID_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Users#Patch");
             throw ConnectorException.wrap(e);
         }
     }
 
-    private static void fillAttr(final User content, final Consumer<User> r) {
-        r.accept(Optional.ofNullable(content).orElseGet(() -> new User()));
-    }
-
     public static Directory.Users.Photos.Update createUpdateUserPhoto(
             final Directory.Users.Photos service, final String userKey, final byte[] data) {
 
         UserPhoto content = new UserPhoto();
-        // Required
         content.setPhotoData(Base64.getMimeEncoder().encodeToString(data));
 
-        // @formatter:off
-        /*
-         * content.setPhotoData(com.google.api.client.util.Base64
-         * .encodeBase64URLSafeString((byte[]) data.get("photoData")));
-         * content.setHeight((Integer) data.get("height"));
-         * content.setWidth((Integer) data.get("width"));
-         *
-         * // Allowed values are JPEG, PNG, GIF, BMP, TIFF,
-         * content.setMimeType((String) data.get("mimeType"));
-         */
-        // @formatter:on
         try {
             return service.update(userKey, content).setFields(GoogleAppsUtil.ID_ATTR);
         } catch (IOException e) {

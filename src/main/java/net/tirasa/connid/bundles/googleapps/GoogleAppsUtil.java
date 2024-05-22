@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.util.GenericData;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -204,28 +205,28 @@ public final class GoogleAppsUtil {
         throw new InvalidAttributeValueException("Required attribute __NAME__ is missing");
     }
 
-    public static String getStringValueWithDefault(final Attribute source, final String defaultTo) {
+    public static Optional<String> getStringValue(final Attribute source) {
         Object value = AttributeUtil.getSingleValue(source);
         if (value instanceof String) {
-            return (String) value;
+            return Optional.of((String) value);
         } else if (null != value) {
             throw new InvalidAttributeValueException("The " + source.getName()
                     + " attribute is not String value attribute. It has value with type "
                     + value.getClass().getSimpleName());
         }
-        return defaultTo;
+        return Optional.empty();
     }
 
-    public static Boolean getBooleanValueWithDefault(final Attribute source, final Boolean defaultTo) {
+    public static Optional<Boolean> getBooleanValue(final Attribute source) {
         Object value = AttributeUtil.getSingleValue(source);
         if (value instanceof Boolean) {
-            return (Boolean) value;
+            return Optional.of((Boolean) value);
         } else if (null != value) {
             throw new InvalidAttributeValueException("The " + source.getName()
                     + " attribute is not Boolean value attribute. It has value with type "
                     + value.getClass().getSimpleName());
         }
-        return defaultTo;
+        return Optional.empty();
     }
 
     public static String generateLicenseId(final String productId, final String skuId, final String userId) {

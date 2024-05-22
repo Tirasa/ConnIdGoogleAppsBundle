@@ -27,6 +27,9 @@ import com.google.api.services.licensing.Licensing;
 import com.google.api.services.licensing.model.LicenseAssignment;
 import com.google.api.services.licensing.model.LicenseAssignmentInsert;
 import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.identityconnectors.common.StringUtil;
@@ -34,10 +37,8 @@ import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
-import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
-import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
 import org.identityconnectors.framework.common.objects.ConnectorObject;
 import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
@@ -69,7 +70,7 @@ public final class LicenseAssignmentsHandler {
     // https://developers.google.com/admin-sdk/licensing/v1/reference/licenseAssignments
     //
     // /////////////
-    public static ObjectClassInfo getLicenseAssignmentClassInfo() {
+    public static ObjectClassInfo getObjectClassInfo() {
         // @formatter:off
         /*
          * {
@@ -101,7 +102,7 @@ public final class LicenseAssignmentsHandler {
         return builder.build();
     }
 
-    public static Licensing.LicenseAssignments.Insert createLicenseAssignment(
+    public static Licensing.LicenseAssignments.Insert create(
             final Licensing.LicenseAssignments service, final AttributesAccessor attributes) {
 
         String productId = attributes.findString(GoogleAppsUtil.PRODUCT_ID_ATTR);
@@ -125,10 +126,10 @@ public final class LicenseAssignmentsHandler {
                     + "The user's current primary email address. Required when creating a LicenseAssignment.");
         }
 
-        return createLicenseAssignment(service, productId, skuId, userId);
+        return create(service, productId, skuId, userId);
     }
 
-    public static Licensing.LicenseAssignments.Insert createLicenseAssignment(
+    public static Licensing.LicenseAssignments.Insert create(
             final Licensing.LicenseAssignments service,
             final String productId,
             final String skuId,
@@ -144,12 +145,22 @@ public final class LicenseAssignmentsHandler {
         }
     }
 
-    public static Licensing.LicenseAssignments.Patch updateLicenseAssignment(
+    private static void set(
+            final AtomicReference<LicenseAssignment> content,
+            final Consumer<LicenseAssignment> consumer) {
+
+        if (content.get() == null) {
+            content.set(new LicenseAssignment());
+        }
+        consumer.accept(content.get());
+    }
+
+    public static Licensing.LicenseAssignments.Patch update(
             final Licensing.LicenseAssignments service,
             final String groupKey,
             final AttributesAccessor attributes) {
 
-        LicenseAssignment content = null;
+        AtomicReference<LicenseAssignment> content = new AtomicReference<>();
 
         Matcher name = LICENSE_NAME_PATTERN.matcher(groupKey);
         if (!name.matches()) {
@@ -160,30 +171,22 @@ public final class LicenseAssignmentsHandler {
         String oldSkuId = name.group(1);
         String userId = name.group(2);
 
-        Attribute skuId = attributes.find(GoogleAppsUtil.SKU_ID_ATTR);
-        if (null != skuId) {
-            content = new LicenseAssignment();
-            content.setSkuId(AttributeUtil.getStringValue(skuId));
-        }
+        Optional.ofNullable(attributes.find(GoogleAppsUtil.SKU_ID_ATTR))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, l -> l.setSkuId(stringValue)));
 
-        if (null == content) {
+        if (null == content.get() || oldSkuId.equalsIgnoreCase(content.get().getSkuId())) {
             return null;
         }
         try {
-            if (oldSkuId.equalsIgnoreCase(content.getSkuId())) {
-                // There is nothing to change
-                return null;
-            } else {
-                return service.patch(productId, oldSkuId, userId, content);
-            }
-            // } catch (HttpResponseException e){
+            return service.patch(productId, oldSkuId, userId, content.get());
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize LicenseAssignments#Patch");
             throw ConnectorException.wrap(e);
         }
     }
 
-    public static Licensing.LicenseAssignments.Delete deleteLicenseAssignment(
+    public static Licensing.LicenseAssignments.Delete delete(
             final Licensing.LicenseAssignments service, final String groupKey) {
 
         Matcher name = LICENSE_NAME_PATTERN.matcher(groupKey);
@@ -204,10 +207,10 @@ public final class LicenseAssignmentsHandler {
         }
     }
 
-    public static ConnectorObject fromLicenseAssignment(final LicenseAssignment content) {
+    public static ConnectorObject from(final LicenseAssignment content) {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(GoogleAppsUtil.LICENSE_ASSIGNMENT);
-        Uid uid = generateLicenseAssignmentId(content);
+        Uid uid = generateUid(content);
         builder.setUid(uid);
         builder.setName(uid.getUidValue());
 
@@ -219,14 +222,14 @@ public final class LicenseAssignmentsHandler {
         return builder.build();
     }
 
-    public static Uid generateLicenseAssignmentId(final LicenseAssignment content) {
+    public static Uid generateUid(final LicenseAssignment content) {
         String id = content.getProductId() + "/sku/" + content.getSkuId() + "/user/"
                 + content.getUserId();
         if (null != content.getEtags()) {
             return new Uid(id, content.getEtags());
-        } else {
-            return new Uid(id);
         }
+
+        return new Uid(id);
     }
 
     private LicenseAssignmentsHandler() {
