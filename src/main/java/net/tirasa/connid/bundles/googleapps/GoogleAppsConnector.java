@@ -263,6 +263,41 @@ public class GoogleAppsConnector
                 }
             }
 
+            Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
+            if (null != groups && null != groups.getValue()) {
+                final Directory.Members service = configuration.getDirectory().members();
+                if (!groups.getValue().isEmpty()) {
+                    final List<Directory.Members.Insert> addGroups = new ArrayList<>();
+
+                    for (Object member : groups.getValue()) {
+                        if (member instanceof String) {
+                            String email = accessor.getName().getNameValue();
+                            addGroups.add(MembersHandler.create(service, (String) member, email, null));
+                        } else if (null != member) {
+                            // throw error/revert?
+                            throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
+                        }
+                    }
+
+                    // Add new Member object
+                    for (Directory.Members.Insert insert : addGroups) {
+                        execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+
+                            @Override
+                            public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                                return null;
+                            }
+
+                            @Override
+                            public Object handleDuplicate(final IOException e) {
+                                // Do nothing
+                                return null;
+                            }
+                        });
+                    }
+                }
+            }
+
             return uid;
         } else if (ObjectClass.GROUP.equals(objectClass)) {
             // @formatter:off
@@ -325,8 +360,7 @@ public class GoogleAppsConnector
                     new RequestResultHandler<Directory.Members.Insert, Member, Uid>() {
 
                 @Override
-                public Uid handleResult(final Directory.Members.Insert request,
-                        final Member value) {
+                public Uid handleResult(final Directory.Members.Insert request, final Member value) {
                     LOG.ok("New Member is created:{0}/{1}", request.getGroupKey(), value.getEmail());
                     return MembersHandler.generateUid(request.getGroupKey(), value);
                 }
@@ -625,7 +659,6 @@ public class GoogleAppsConnector
                     throw ConnectorException.wrap(e);
                 }
             }
-
         } else if (ObjectClass.GROUP.equals(objectClass)) {
             if (null == key) {
                 // Search request
@@ -688,10 +721,8 @@ public class GoogleAppsConnector
                     LOG.warn(e, "Failed to initialize Groups#List");
                     throw ConnectorException.wrap(e);
                 }
-
             } else {
                 // Read request
-
                 try {
                     Directory.Groups.Get request =
                             configuration.getDirectory().groups().get((String) key.getValue().get(0));
@@ -702,8 +733,8 @@ public class GoogleAppsConnector
 
                         @Override
                         public Boolean handleResult(final Directory.Groups.Get request, final Group value) {
-                            return handler.handle(fromGroup(value, attributesToGet,
-                                    configuration.getDirectory().members()));
+                            return handler.handle(fromGroup(
+                                    value, attributesToGet, configuration.getDirectory().members()));
                         }
 
                         @Override
@@ -1004,7 +1035,7 @@ public class GoogleAppsConnector
 
     }
 
-    protected Attribute getKeyFromFilter(final ObjectClass objectClass, final Filter filter) {
+    protected static Attribute getKeyFromFilter(final ObjectClass objectClass, final Filter filter) {
         Attribute key = null;
         if (filter instanceof EqualsFilter) {
             // Account, Group, OrgUnit object classes
@@ -1058,7 +1089,7 @@ public class GoogleAppsConnector
         return key;
     }
 
-    protected Set<String> getAttributesToGet(final ObjectClass objectClass, final OperationOptions options) {
+    protected static Set<String> getAttributesToGet(final ObjectClass objectClass, final OperationOptions options) {
         Set<String> attributesToGet = null;
         if (null != options.getAttributesToGet()) {
             attributesToGet = CollectionUtil.newCaseInsensitiveSet();
@@ -1095,7 +1126,7 @@ public class GoogleAppsConnector
         return attributesToGet;
     }
 
-    protected String googleName(final ObjectClass objectClass, final String attributeName) {
+    protected static String googleName(final ObjectClass objectClass, final String attributeName) {
         if (AttributeUtil.namesEqual(Name.NAME, attributeName)) {
             if (ObjectClass.ACCOUNT.equals(objectClass)) {
                 return GoogleAppsUtil.PRIMARY_EMAIL_ATTR;
@@ -1122,7 +1153,7 @@ public class GoogleAppsConnector
         return attributeName; //__GROUPS__ //__PASSWORD__
     }
 
-    protected Set<String> getAttributesToGet(final OperationOptions options) {
+    protected static Set<String> getAttributesToGet(final OperationOptions options) {
         Set<String> attributesToGet = null;
         if (null != options.getAttributesToGet()) {
             attributesToGet = CollectionUtil.newCaseInsensitiveSet();
