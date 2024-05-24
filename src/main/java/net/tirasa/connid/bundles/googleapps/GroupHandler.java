@@ -23,27 +23,38 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
-import com.google.api.services.admin.directory.Directory;
-import com.google.api.services.admin.directory.model.Group;
+import static net.tirasa.connid.bundles.googleapps.GoogleApiExecutor.execute;
+
+import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.model.Group;
+import com.google.api.services.directory.model.Groups;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
+import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaUtil;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
+import org.identityconnectors.framework.common.objects.ConnectorObject;
+import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
+import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.AndFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
@@ -284,6 +295,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         builder.setType(ObjectClass.GROUP_NAME);
         // email
         builder.addAttributeInfo(Name.INFO);
+        builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.ID_ATTR));
         builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.NAME_ATTR));
         builder.addAttributeInfo(AttributeInfoBuilder.build(GoogleAppsUtil.DESCRIPTION_ATTR));
 
@@ -316,7 +328,6 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
 
         try {
             return service.insert(group).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Insert");
             throw ConnectorException.wrap(e);
@@ -342,11 +353,11 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
                 .ifPresent(email -> set(content, g -> g.setEmail(email.getNameValue())));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.NAME_ATTR))
-                .flatMap(name -> GoogleAppsUtil.getStringValue(name))
+                .flatMap(GoogleAppsUtil::getStringValue)
                 .ifPresent(stringValue -> set(content, g -> g.setName(stringValue)));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.DESCRIPTION_ATTR))
-                .flatMap(description -> GoogleAppsUtil.getStringValue(description))
+                .flatMap(GoogleAppsUtil::getStringValue)
                 .ifPresent(stringValue -> set(content, g -> g.setDescription(stringValue)));
 
         if (null == content.get()) {
@@ -354,10 +365,124 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
         try {
             return service.patch(groupKey, content.get()).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Groups#Patch");
             throw ConnectorException.wrap(e);
         }
     }
+
+    public static Directory.Groups.Update update(
+            final Directory.Groups service,
+            final String groupKey,
+            final Set<AttributeDelta> modifications) {
+
+        if (AttributeDeltaUtil.getUidAttributeDelta(modifications) != null
+                || AttributeDeltaUtil.getAttributeDeltaForName(modifications) != null) {
+
+            throw new IllegalArgumentException("Do not perform rename via updateDelta, use standard update");
+        }
+
+        AtomicReference<Group> content = new AtomicReference<>();
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.NAME_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, g -> g.setName(stringValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.DESCRIPTION_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, g -> g.setDescription(stringValue)));
+
+        if (null == content.get()) {
+            return null;
+        }
+        try {
+            return service.update(groupKey, content.get()).setFields(GoogleAppsUtil.ID_EMAIL_ETAG);
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Groups#update");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
+    public static Set<String> listGroups(final Directory.Groups service, final String userKey, final String domain) {
+        final Set<String> result = CollectionUtil.newCaseInsensitiveSet();
+        try {
+            Directory.Groups.List request = service.list();
+            request.setUserKey(userKey);
+            request.setFields("groups/email");
+            // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey combination 
+            // allowed. request.setCustomer(MY_CUSTOMER_ID);
+            request.setDomain(domain);
+
+            String nextPageToken;
+            do {
+                nextPageToken = execute(request, new RequestResultHandler<Directory.Groups.List, Groups, String>() {
+
+                    @Override
+                    public String handleResult(final Directory.Groups.List request, final Groups value) {
+                        if (null != value.getGroups()) {
+                            for (Group group : value.getGroups()) {
+                                result.add(group.getEmail());
+                            }
+                        }
+                        return value.getNextPageToken();
+                    }
+                });
+            } while (StringUtil.isNotBlank(nextPageToken));
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Members#Delete");
+            throw ConnectorException.wrap(e);
+        }
+        return result;
+    }
+
+    public static ConnectorObject fromGroup(
+            final Group group,
+            final Set<String> attributesToGet,
+            final Directory.Members service) {
+
+        ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+        builder.setObjectClass(ObjectClass.GROUP);
+
+        if (null != group.getEtag()) {
+            builder.setUid(new Uid(group.getEmail(), group.getEtag()));
+        } else {
+            builder.setUid(group.getEmail());
+        }
+        builder.setName(group.getEmail());
+
+        // Optional
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.NAME_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.NAME_ATTR, group.getName()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.EMAIL_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.EMAIL_ATTR, group.getEmail()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.DESCRIPTION_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.DESCRIPTION_ATTR, group.getDescription()));
+        }
+
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ADMIN_CREATED_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ADMIN_CREATED_ATTR, group.getAdminCreated()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ALIASES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ALIASES_ATTR, group.getAliases()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.NON_EDITABLE_ALIASES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.NON_EDITABLE_ALIASES_ATTR, group.getNonEditableAliases()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.DIRECT_MEMBERS_COUNT_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.DIRECT_MEMBERS_COUNT_ATTR, group.getDirectMembersCount()));
+        }
+
+        // Expensive to get
+        if (null != attributesToGet && attributesToGet.contains(GoogleAppsUtil.MEMBERS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.MEMBERS_ATTR, MembersHandler.listMembers(service, group.getId(), null)));
+        }
+
+        return builder.build();
+    }
+
 }

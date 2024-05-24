@@ -38,6 +38,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.Banner;
 import org.springframework.boot.CommandLineRunner;
@@ -51,6 +53,8 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties
 public class CredentialsGeneratorApplication implements CommandLineRunner {
 
+    private static final Logger LOG = LoggerFactory.getLogger(CredentialsGeneratorApplication.class);
+
     // Path to client_secrets.json which should contain a JSON document such as:
     // {
     // "web or installed": {
@@ -62,16 +66,16 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     // }
     private static final String CLIENTSECRETS_LOCATION = "client_secrets.json";
 
-    public static final String ADMIN_DIRECTORY_GROUP =
+    private static final String ADMIN_DIRECTORY_GROUP =
             "https://www.googleapis.com/auth/admin.directory.group";
 
-    public static final String ADMIN_DIRECTORY_ORGUNIT =
+    private static final String ADMIN_DIRECTORY_ORGUNIT =
             "https://www.googleapis.com/auth/admin.directory.orgunit";
 
-    public static final String ADMIN_DIRECTORY_USER =
+    private static final String ADMIN_DIRECTORY_USER =
             "https://www.googleapis.com/auth/admin.directory.user";
 
-    public static final String ADMIN_ENTERPRISE_LICENSE =
+    private static final String ADMIN_ENTERPRISE_LICENSE =
             "https://www.googleapis.com/auth/apps.licensing";
 
     public static final Map<String, Object> CONFIG_MAP = new LinkedHashMap<>(3);
@@ -103,12 +107,23 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         CONFIG_MAP.put("clientSecret", clientSecrets.getDetails().getClientSecret());
 
         String requestUrl = new GoogleAuthorizationCodeRequestUrl(
-                clientSecrets.getDetails().getClientId(),
-                redirectUri, SCOPES)
-                .setState("/profile").build();
-        System.out.println("Request Url is " + requestUrl);
+                clientSecrets.getDetails().getClientId(), redirectUri, SCOPES).setState("/profile").build();
+        LOG.info("Request Url is {}", requestUrl);
 
-        Desktop.getDesktop().browse(new URI(requestUrl));
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            try {
+                Desktop.getDesktop().browse(new URI(requestUrl));
+            } catch (IOException | URISyntaxException e) {
+                LOG.error("Could not browse the URL above", e);
+            }
+        } else {
+            Runtime runtime = Runtime.getRuntime();
+            try {
+                runtime.exec("xdg-open " + requestUrl);
+            } catch (IOException e) {
+                LOG.error("Could not browse the URL above", e);
+            }
+        }
     }
 
     @Bean
@@ -131,7 +146,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
             if (clientJson.exists() && clientJson.isFile()) {
                 getConfigurationMap(clientJson);
             } else {
-                System.err.println("Invalid client secret path. File not exists " + clientJson);
+                LOG.error("Invalid client secret path: {}", clientJson);
             }
         }
     }

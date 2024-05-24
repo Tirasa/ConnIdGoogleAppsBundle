@@ -200,7 +200,6 @@ public final class LicenseAssignmentsHandler {
 
         try {
             return service.delete(productId, skuId, userId);
-            // } catch (HttpResponseException e){
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize LicenseAssignments#Delete");
             throw ConnectorException.wrap(e);

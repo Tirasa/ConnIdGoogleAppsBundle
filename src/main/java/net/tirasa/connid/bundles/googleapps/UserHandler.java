@@ -24,23 +24,23 @@
 package net.tirasa.connid.bundles.googleapps;
 
 import com.google.api.client.util.GenericData;
-import com.google.api.services.admin.directory.Directory;
-import com.google.api.services.admin.directory.model.Alias;
-import com.google.api.services.admin.directory.model.User;
-import com.google.api.services.admin.directory.model.UserAddress;
-import com.google.api.services.admin.directory.model.UserEmail;
-import com.google.api.services.admin.directory.model.UserExternalId;
-import com.google.api.services.admin.directory.model.UserIm;
-import com.google.api.services.admin.directory.model.UserName;
-import com.google.api.services.admin.directory.model.UserOrganization;
-import com.google.api.services.admin.directory.model.UserPhone;
-import com.google.api.services.admin.directory.model.UserPhoto;
-import com.google.api.services.admin.directory.model.UserRelation;
+import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.model.Alias;
+import com.google.api.services.directory.model.User;
+import com.google.api.services.directory.model.UserAddress;
+import com.google.api.services.directory.model.UserExternalId;
+import com.google.api.services.directory.model.UserIm;
+import com.google.api.services.directory.model.UserName;
+import com.google.api.services.directory.model.UserOrganization;
+import com.google.api.services.directory.model.UserPhone;
+import com.google.api.services.directory.model.UserPhoto;
+import com.google.api.services.directory.model.UserRelation;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,14 +58,20 @@ import org.identityconnectors.common.security.SecurityUtil;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
+import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaUtil;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
+import org.identityconnectors.framework.common.objects.ConnectorObject;
+import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.OperationalAttributes;
 import org.identityconnectors.framework.common.objects.PredefinedAttributeInfos;
+import org.identityconnectors.framework.common.objects.PredefinedAttributes;
 import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.AndFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
@@ -486,6 +492,8 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         // primaryEmail
         builder.addAttributeInfo(Name.INFO);
 
+        builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.ID_ATTR).setRequired(true)
+                .build());
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.GIVEN_NAME_ATTR).setRequired(true)
                 .build());
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.FAMILY_NAME_ATTR).setRequired(true)
@@ -618,8 +626,7 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }
 
         user.setName(new UserName());
-        // givenName The user's first name. Required when creating a user
-        // account.
+        // givenName The user's first name. Required when creating a user account.
         String givenName = attributes.findString(GoogleAppsUtil.GIVEN_NAME_ATTR);
         if (StringUtil.isNotBlank(givenName)) {
             user.getName().setGivenName(givenName);
@@ -772,11 +779,11 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         }));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR))
-                .flatMap(changePasswordAtNextLogin -> GoogleAppsUtil.getBooleanValue(changePasswordAtNextLogin))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
                 .ifPresent(booleanValue -> set(content, u -> u.setChangePasswordAtNextLogin(booleanValue)));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.IP_WHITELISTED_ATTR))
-                .flatMap(ipWhitelisted -> GoogleAppsUtil.getBooleanValue(ipWhitelisted))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
                 .ifPresent(booleanValue -> set(content, u -> u.setIpWhitelisted(booleanValue)));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.ORG_UNIT_PATH_ATTR))
@@ -784,12 +791,13 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                 .ifPresent(stringValue -> set(content, u -> u.setOrgUnitPath(stringValue)));
 
         Optional.ofNullable(attributes.find(GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR))
-                .flatMap(includeInGlobalAddressList -> GoogleAppsUtil.getBooleanValue(includeInGlobalAddressList))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
                 .ifPresent(booleanValue -> set(content, u -> u.setIncludeInGlobalAddressList(booleanValue)));
 
-        // Complex attributes
         Optional.ofNullable(attributes.find(GoogleAppsUtil.EMAILS_ATTR))
-                .ifPresent(emails -> set(content, u -> u.setEmails(buildObjs(emails.getValue(), UserEmail.class))));
+                .ifPresent(emails -> set(content, u -> u.setEmails(emails.getValue())));
+
+        // Complex attributes
         Optional.ofNullable(attributes.findList(GoogleAppsUtil.IMS_ATTR))
                 .ifPresent(value -> set(content, u -> u.setIms(buildObjs(value, UserIm.class))));
         Optional.ofNullable(attributes.findList(GoogleAppsUtil.EXTERNAL_IDS_ATTR))
@@ -814,6 +822,139 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             return service.patch(userKey, content.get()).setFields(GoogleAppsUtil.ID_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Users#Patch");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
+    private static Object getValueByType(
+            final GoogleAppsCustomSchema innerSchema,
+            final Set<AttributeDelta> modifications,
+            final String innerSchemaName) {
+
+        return Optional.ofNullable(AttributeDeltaUtil.find(innerSchemaName, modifications)).
+                map(attrDelta -> innerSchema.getMultiValued()
+                ? attrDelta.getValuesToReplace() : AttributeDeltaUtil.getStringValue(attrDelta)).
+                orElse(null);
+    }
+
+    private static Map<String, Map<String, Object>> buildCustomAttrs(
+            final String customSchemas, final Set<AttributeDelta> modifications) {
+
+        List<GoogleAppsCustomSchema> schemas = GoogleAppsUtil.extractCustomSchemas(customSchemas);
+        Map<String, Map<String, Object>> attrsToAdd = new HashMap<>();
+        for (GoogleAppsCustomSchema customSchema : schemas) {
+            if (customSchema.getType().equals("object")) {
+                // parse inner schemas
+                String basicName = customSchema.getName();
+                // manage only first level inner schemas
+                for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                    final String innerSchemaName = basicName + "." + innerSchema.getName();
+                    if (attrsToAdd.containsKey(basicName)) {
+                        attrsToAdd.get(basicName).put(
+                                innerSchema.getName(),
+                                getValueByType(innerSchema, modifications, innerSchemaName));
+                    } else {
+                        Map<String, Object> value = new HashMap<>();
+                        value.put(innerSchema.getName(), getValueByType(innerSchema, modifications, innerSchemaName));
+                        attrsToAdd.put(basicName, value);
+                    }
+                }
+            } else {
+                LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+            }
+        }
+        return attrsToAdd;
+    }
+
+    public static Directory.Users.Update updateUser(
+            final Directory.Users service,
+            final String userKey,
+            final Set<AttributeDelta> modifications,
+            final String customSchemas) {
+
+        if (AttributeDeltaUtil.getUidAttributeDelta(modifications) != null
+                || AttributeDeltaUtil.getAttributeDeltaForName(modifications) != null) {
+
+            throw new IllegalArgumentException("Do not perform rename via updateDelta, use standard update");
+        }
+
+        AtomicReference<User> content = new AtomicReference<>();
+
+        Optional.ofNullable(AttributeDeltaUtil.find(OperationalAttributes.ENABLE_NAME, modifications))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
+                .ifPresent(enable -> set(content, u -> u.setSuspended(!enable)));
+
+        Optional.ofNullable(AttributeDeltaUtil.getPasswordValue(modifications))
+                .ifPresent(password -> set(content, u -> u.setPassword(SecurityUtil.decrypt(password))));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.GIVEN_NAME_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> {
+
+            u.setName(new UserName());
+            u.getName().setGivenName(stringValue);
+        }));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.FAMILY_NAME_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> {
+
+            Optional.ofNullable(u.getName()).orElseGet(() -> {
+                u.setName(new UserName());
+                return u.getName();
+            }).setFamilyName(stringValue);
+        }));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
+                .ifPresent(booleanValue -> set(content, u -> u.setChangePasswordAtNextLogin(booleanValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.IP_WHITELISTED_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
+                .ifPresent(booleanValue -> set(content, u -> u.setIpWhitelisted(booleanValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.ORG_UNIT_PATH_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, u -> u.setOrgUnitPath(stringValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
+                .ifPresent(booleanValue -> set(content, u -> u.setIncludeInGlobalAddressList(booleanValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.EMAILS_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setEmails(a.getValuesToReplace())));
+
+        // Complex attributes
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.IMS_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setIms(
+                buildObjs(a.getValuesToReplace(), UserIm.class))));
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.EXTERNAL_IDS_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setExternalIds(
+                buildObjs(a.getValuesToReplace(), UserExternalId.class))));
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.RELATIONS_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setRelations(
+                buildObjs(a.getValuesToReplace(), UserRelation.class))));
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.ADDRESSES_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setAddresses(
+                buildObjs(a.getValuesToReplace(), UserAddress.class))));
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.ORGANIZATIONS_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setOrganizations(
+                buildObjs(a.getValuesToReplace(), UserOrganization.class))));
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.PHONES_ATTR, modifications))
+                .ifPresent(a -> set(content, u -> u.setPhones(
+                buildObjs(a.getValuesToReplace(), UserPhone.class))));
+
+        if (StringUtil.isNotBlank(customSchemas)) {
+            set(content, u -> u.setCustomSchemas(buildCustomAttrs(customSchemas, modifications)));
+        }
+
+        if (null == content.get()) {
+            return null;
+        }
+        try {
+            return service.update(userKey, content.get()).setFields(GoogleAppsUtil.ID_ETAG);
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Users#update");
             throw ConnectorException.wrap(e);
         }
     }
@@ -854,5 +995,170 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             LOG.warn(e, "Failed to initialize Aliases#Delete");
             throw ConnectorException.wrap(e);
         }
+    }
+
+    private static Object getValueFromKey(
+            final String customSchema,
+            final Map<String, Map<String, Object>> customSchemas) {
+
+        String[] names = customSchema.split("\\.");
+        return names.length > 1
+                ? customSchemas.get(names[0]) != null ? customSchemas.get(names[0]).get(names[1]) : null
+                : null;
+    }
+
+    public static ConnectorObject fromUser(
+            final GoogleAppsConfiguration configuration,
+            final User user,
+            final Set<String> attributesToGet,
+            final Directory.Groups service) {
+
+        ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
+        if (null != user.getEtag()) {
+            builder.setUid(new Uid(user.getId(), user.getEtag()));
+        } else {
+            builder.setUid(user.getId());
+        }
+        builder.setName(user.getPrimaryEmail());
+        if (user.getSuspended() != null) {
+            builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME, !user.getSuspended()));
+        }
+
+        if ((null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ID_ATTR))) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ID_ATTR, user.getId()));
+        }
+        if ((null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.PRIMARY_EMAIL_ATTR))) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.PRIMARY_EMAIL_ATTR, user.getPrimaryEmail()));
+        }
+        // Optional
+        // If both givenName and familyName are empty then Google didn't return with 'name'
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.GIVEN_NAME_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.GIVEN_NAME_ATTR,
+                    null != user.getName() ? user.getName().getGivenName() : null));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.FAMILY_NAME_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.FAMILY_NAME_ATTR,
+                    null != user.getName() ? user.getName().getFamilyName() : null));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.FULL_NAME_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.FULL_NAME_ATTR,
+                    null != user.getName() ? user.getName().getFullName() : null));
+        }
+
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.IS_ADMIN_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.IS_ADMIN_ATTR, user.getIsAdmin()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.IS_DELEGATED_ADMIN_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.IS_DELEGATED_ADMIN_ATTR, user.getIsDelegatedAdmin()));
+        }
+        if ((null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.LAST_LOGIN_TIME_ATTR))
+                && user.getLastLoginTime() != null) {
+
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.LAST_LOGIN_TIME_ATTR, user.getLastLoginTime().toString()));
+        }
+        if ((null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.CREATION_TIME_ATTR))
+                && user.getCreationTime() != null) {
+
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.CREATION_TIME_ATTR, user.getCreationTime().toString()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.AGREED_TO_TERMS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.AGREED_TO_TERMS_ATTR, user.getAgreedToTerms()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.SUSPENSION_REASON_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.SUSPENSION_REASON_ATTR, user.getSuspensionReason()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR, user.getChangePasswordAtNextLogin()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.IP_WHITELISTED_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.IP_WHITELISTED_ATTR, user.getIpWhitelisted()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.IMS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.IMS_ATTR, (Collection) user.getIms()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.EMAILS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.EMAILS_ATTR, (Collection) user.getEmails()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.EXTERNAL_IDS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.EXTERNAL_IDS_ATTR, (Collection) user.getExternalIds()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.RELATIONS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.RELATIONS_ATTR, (Collection) user.getRelations()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ADDRESSES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.ADDRESSES_ATTR, (Collection) user.getAddresses()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ORGANIZATIONS_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.ORGANIZATIONS_ATTR, (Collection) user.getOrganizations()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.PHONES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.PHONES_ATTR, (Collection) user.getPhones()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ALIASES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ALIASES_ATTR, user.getAliases()));
+        }
+
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.NON_EDITABLE_ALIASES_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.NON_EDITABLE_ALIASES_ATTR, user.getNonEditableAliases()));
+        }
+
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.CUSTOMER_ID_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.CUSTOMER_ID_ATTR, user.getCustomerId()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ORG_UNIT_PATH_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ORG_UNIT_PATH_ATTR, user.getOrgUnitPath()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.IS_MAILBOX_SETUP_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.IS_MAILBOX_SETUP_ATTR, user.getIsMailboxSetup()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(
+                    GoogleAppsUtil.INCLUDE_IN_GLOBAL_ADDRESS_LIST_ATTR, user.getIncludeInGlobalAddressList()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.THUMBNAIL_PHOTO_URL_ATTR)) {
+            builder.addAttribute(
+                    AttributeBuilder.build(GoogleAppsUtil.THUMBNAIL_PHOTO_URL_ATTR, user.getThumbnailPhotoUrl()));
+        }
+        if (null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.DELETION_TIME_ATTR)) {
+            builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.DELETION_TIME_ATTR,
+                    null != user.getDeletionTime() ? user.getDeletionTime().toString() : null));
+        }
+        if (null == attributesToGet || ("full".equals(configuration.getProjection())
+                && StringUtil.isNotBlank(configuration.getCustomSchemasJSON()))) {
+
+            GoogleAppsUtil.extractCustomSchemas(configuration.getCustomSchemasJSON()).forEach(customSchema -> {
+                if (customSchema.getType().equals("object")) {
+                    // manage only first level inner schemas
+                    for (GoogleAppsCustomSchema innerSchema : customSchema.getInnerSchemas()) {
+                        String innerSchemaName = customSchema.getName() + "." + innerSchema.getName();
+                        builder.addAttribute(AttributeBuilder.build(
+                                innerSchemaName,
+                                null != user.getCustomSchemas()
+                                ? getValueFromKey(innerSchemaName, user.getCustomSchemas())
+                                : null));
+                    }
+                } else {
+                    LOG.warn("CustomSchema type {0} not allowed at this level", customSchema.getType());
+                }
+            });
+        }
+        // Expensive to get
+        if (null != attributesToGet && attributesToGet.contains(PredefinedAttributes.GROUPS_NAME)) {
+            builder.addAttribute(AttributeBuilder.build(PredefinedAttributes.GROUPS_NAME,
+                    GroupHandler.listGroups(service, user.getId(), configuration.getDomain())));
+        }
+
+        return builder.build();
     }
 }

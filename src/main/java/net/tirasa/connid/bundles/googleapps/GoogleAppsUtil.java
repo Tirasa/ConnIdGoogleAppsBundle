@@ -31,10 +31,13 @@ import com.google.api.client.util.GenericData;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaUtil;
 import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
@@ -219,6 +222,34 @@ public final class GoogleAppsUtil {
 
     public static Optional<Boolean> getBooleanValue(final Attribute source) {
         Object value = AttributeUtil.getSingleValue(source);
+        if (value instanceof Boolean) {
+            return Optional.of((Boolean) value);
+        } else if (null != value) {
+            throw new InvalidAttributeValueException("The " + source.getName()
+                    + " attribute is not Boolean value attribute. It has value with type "
+                    + value.getClass().getSimpleName());
+        }
+        return Optional.empty();
+    }
+
+    public static Optional<String> getStringValue(final AttributeDelta source) {
+        Object value = Optional.ofNullable(AttributeDeltaUtil.getSingleValue(source)).
+                orElseGet(() -> CollectionUtil.isEmpty(source.getValuesToAdd())
+                ? null : source.getValuesToAdd().get(0));
+        if (value instanceof String) {
+            return Optional.of((String) value);
+        } else if (null != value) {
+            throw new InvalidAttributeValueException("The " + source.getName()
+                    + " attribute is not String value attribute. It has value with type "
+                    + value.getClass().getSimpleName());
+        }
+        return Optional.empty();
+    }
+
+    public static Optional<Boolean> getBooleanValue(final AttributeDelta source) {
+        Object value = Optional.ofNullable(AttributeDeltaUtil.getSingleValue(source)).
+                orElseGet(() -> CollectionUtil.isEmpty(source.getValuesToAdd())
+                ? null : source.getValuesToAdd().get(0));
         if (value instanceof Boolean) {
             return Optional.of((Boolean) value);
         } else if (null != value) {

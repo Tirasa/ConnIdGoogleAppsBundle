@@ -29,8 +29,8 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.admin.directory.Directory;
-import com.google.api.services.admin.directory.DirectoryScopes;
+import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.DirectoryScopes;
 import com.google.api.services.licensing.Licensing;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -240,7 +240,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                         DirectoryScopes.ADMIN_DIRECTORY_USERSCHEMA,
                         DirectoryScopes.ADMIN_DIRECTORY_ORGUNIT,
                         DirectoryScopes.ADMIN_DIRECTORY_DOMAIN,
-                        DirectoryScopes.ADMIN_DIRECTORY_NOTIFICATIONS,
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP,
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
 

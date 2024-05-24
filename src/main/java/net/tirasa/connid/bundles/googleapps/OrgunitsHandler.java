@@ -23,19 +23,20 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
-import com.google.api.services.admin.directory.Directory;
-import com.google.api.services.admin.directory.model.OrgUnit;
+import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.model.OrgUnit;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaUtil;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.AttributesAccessor;
 import org.identityconnectors.framework.common.objects.ConnectorObject;
@@ -81,7 +82,6 @@ public final class OrgunitsHandler {
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
         builder.setType(GoogleAppsUtil.ORG_UNIT.getObjectClassValue());
         builder.setContainer(true);
-        // primaryEmail
         builder.addAttributeInfo(Name.INFO);
         // parentOrgUnitPath
         builder.addAttributeInfo(AttributeInfoBuilder.define(GoogleAppsUtil.PARENT_ORG_UNIT_PATH_ATTR).
@@ -170,7 +170,7 @@ public final class OrgunitsHandler {
                 .ifPresent(stringValue -> set(content, o -> o.setDescription(stringValue)));
 
         Optional.ofNullable(attributes.findBoolean(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR))
-                .ifPresent(blockInheritance -> set(content, u -> u.setBlockInheritance(!blockInheritance)));
+                .ifPresent(blockInheritance -> set(content, o -> o.setBlockInheritance(!blockInheritance)));
 
         if (null == content.get()) {
             return null;
@@ -179,10 +179,49 @@ public final class OrgunitsHandler {
             // Full path of the organization unit
             return service.patch(
                     GoogleAppsUtil.MY_CUSTOMER_ID,
-                    CollectionUtil.newList(orgUnitPath),
+                    orgUnitPath,
                     content.get()).setFields(GoogleAppsUtil.ORG_UNIT_PATH_ETAG);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Orgunits#Patch");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
+    public static Directory.Orgunits.Update update(
+            final Directory.Orgunits service,
+            final String orgUnitPath,
+            final Set<AttributeDelta> modifications) {
+
+        AtomicReference<OrgUnit> content = new AtomicReference<>();
+
+        Optional.ofNullable(AttributeDeltaUtil.getAttributeDeltaForName(modifications))
+                .map(AttributeDeltaUtil::getStringValue)
+                .flatMap(name -> getOrgUnitNameFromPath(new Name(name)))
+                .ifPresent(name -> set(content, o -> o.setName(name)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.PARENT_ORG_UNIT_PATH_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, o -> o.setParentOrgUnitPath(stringValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.DESCRIPTION_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getStringValue)
+                .ifPresent(stringValue -> set(content, o -> o.setDescription(stringValue)));
+
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.BLOCK_INHERITANCE_ATTR, modifications))
+                .flatMap(GoogleAppsUtil::getBooleanValue)
+                .ifPresent(blockInheritance -> set(content, o -> o.setBlockInheritance(!blockInheritance)));
+
+        if (null == content.get()) {
+            return null;
+        }
+        try {
+            // Full path of the organization unit
+            return service.update(
+                    GoogleAppsUtil.MY_CUSTOMER_ID,
+                    orgUnitPath,
+                    content.get()).setFields(GoogleAppsUtil.ORG_UNIT_PATH_ETAG);
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Orgunits#update");
             throw ConnectorException.wrap(e);
         }
     }
