@@ -158,7 +158,7 @@
         <artifactId>spring-boot-maven-plugin</artifactId>
         <version>${spring-boot.version}</version>
         <configuration>
-          <finalName>${project.build.finalName}-credentials-generator</finalName>
+          <classifier>credentials-generator</classifier>
         </configuration>
         <executions>
           <execution>
