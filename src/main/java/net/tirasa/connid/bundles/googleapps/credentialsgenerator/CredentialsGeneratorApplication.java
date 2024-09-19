@@ -109,7 +109,7 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         String requestUrl = new GoogleAuthorizationCodeRequestUrl(
                 clientSecrets.getDetails().getClientId(), redirectUri, SCOPES)
                 .setState("/profile")
-                .setAccessType("offline")  // Imposta access_type=offline
+                .setAccessType("offline")
                 .set("prompt", "consent")
                 .build();
         LOG.info("Request Url is {}", requestUrl);
