@@ -107,7 +107,11 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         CONFIG_MAP.put("clientSecret", clientSecrets.getDetails().getClientSecret());
 
         String requestUrl = new GoogleAuthorizationCodeRequestUrl(
-                clientSecrets.getDetails().getClientId(), redirectUri, SCOPES).setState("/profile").build();
+                clientSecrets.getDetails().getClientId(), redirectUri, SCOPES)
+                .setState("/profile")
+                .setAccessType("offline")
+                .set("prompt", "consent")
+                .build();
         LOG.info("Request Url is {}", requestUrl);
 
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
