@@ -96,6 +96,9 @@ public class GoogleAppsConnectorUnitTests {
                 + "}]"
                 + "}]");
 
+        CONN_CONF.setProxyServerHost("localhost");
+        CONN_CONF.setProxyServerPort(3128);
+        
         CONNECTOR = newFacade();
     }
 
