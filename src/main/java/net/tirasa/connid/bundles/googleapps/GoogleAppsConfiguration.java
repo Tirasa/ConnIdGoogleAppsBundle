@@ -42,6 +42,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.apache.http.HttpHost;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.identityconnectors.common.StringUtil;
@@ -229,24 +230,28 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
             if (null == googleCredentials) {
                 UserCredentials.Builder credentialsBuilder = UserCredentials.newBuilder();
 
+                Optional<String> httpProxyHost = Optional.ofNullable(System.getProperty("http.proxyHost"));
+                Optional<String> httpProxyPort = Optional.ofNullable(System.getProperty("http.proxyPort"));
+                Optional<String> httpsProxyHost = Optional.ofNullable(System.getProperty("https.proxyHost"));
+                Optional<String> httpsProxyPort = Optional.ofNullable(System.getProperty("https.proxyPort"));
+                Optional<String> socksProxyHost = Optional.ofNullable(System.getProperty("socksProxyHost"));
+                Optional<String> socksProxyPort = Optional.ofNullable(System.getProperty("socksProxyPort"));
                 Proxy.Type proxyType =
-                        (System.getProperty("http.proxyHost") != null && System.getProperty("http.proxyPort") != null)
-                                || (System.getProperty("https.proxyHost") != null
-                                && System.getProperty("https.proxyPort") != null)
+                        (httpProxyHost.isPresent() && httpProxyPort.isPresent())
+                                || (httpsProxyHost.isPresent() && httpsProxyPort.isPresent())
                                 ? Proxy.Type.HTTP
-                                : System.getProperty("socksProxyHost") != null
-                                        && System.getProperty("socksProxyPort") != null
+                                : socksProxyHost.isPresent() && socksProxyPort.isPresent()
                                         ? Proxy.Type.SOCKS
                                         : Proxy.Type.DIRECT;
                 
                 if (Proxy.Type.HTTP == proxyType) {
                     HttpClientBuilder clientBuilder = HttpClientBuilder.create();
                     clientBuilder.useSystemProperties();
-                    clientBuilder.setProxy(System.getProperty("https.proxyHost") != null 
-                            ? new HttpHost(System.getProperty("https.proxyHost"),
-                            Integer.parseInt(System.getProperty("https.proxyPort")))
-                            : new HttpHost(System.getProperty("http.proxyHost"),
-                                    Integer.parseInt(System.getProperty("http.proxyPort"))));
+                    clientBuilder.setProxy(httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
+                            ? new HttpHost(httpsProxyHost.get(),
+                            Integer.parseInt(httpsProxyPort.get()))
+                            : new HttpHost(httpProxyHost.get(),
+                                    Integer.parseInt(httpProxyPort.get())));
                     credentialsBuilder.setHttpTransportFactory(new HttpTransportFactory() {
                         @Override
                         public HttpTransport create() {
@@ -273,14 +278,13 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                         ? new NetHttpTransport()
                         : new NetHttpTransport.Builder().setProxy(new Proxy(proxyType,
                                         Proxy.Type.SOCKS == proxyType
-                                                ? new InetSocketAddress(System.getProperty("socksProxyHost"),
-                                                Integer.parseInt(System.getProperty("socksProxyHost")))
-                                                : System.getProperty("https.proxyHost") != null
-                                                        ? new InetSocketAddress(System.getProperty("https.proxyHost"),
-                                                        Integer.parseInt(System.getProperty("https.proxyPort")))
-                                                        : new InetSocketAddress(System.getProperty("http.proxyHost"),
-                                                                Integer.parseInt(
-                                                                        System.getProperty("http.proxyPort")))))
+                                                ? new InetSocketAddress(socksProxyHost.get(),
+                                                Integer.parseInt(socksProxyHost.get()))
+                                                : httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
+                                                        ? new InetSocketAddress(httpsProxyHost.get(),
+                                                        Integer.parseInt(httpsProxyPort.get()))
+                                                        : new InetSocketAddress(httpProxyHost.get(),
+                                                                Integer.parseInt(httpProxyPort.get()))))
                                 .build();
 
                 HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(googleCredentials);
