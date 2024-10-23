@@ -26,6 +26,7 @@ package net.tirasa.connid.bundles.googleapps;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
@@ -33,11 +34,17 @@ import com.google.api.services.directory.Directory;
 import com.google.api.services.directory.DirectoryScopes;
 import com.google.api.services.licensing.Licensing;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import org.apache.http.HttpHost;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
@@ -54,11 +61,6 @@ import org.identityconnectors.framework.spi.StatefulConfiguration;
 public class GoogleAppsConfiguration extends AbstractConfiguration implements StatefulConfiguration {
 
     private static final Log LOG = Log.getLog(GoogleAppsConfiguration.class);
-
-    /**
-     * Global instance of the HTTP transport.
-     */
-    private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 
     /**
      * Global instance of the JSON factory.
@@ -226,9 +228,38 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
     private void initGoogleCredentials() {
         synchronized (this) {
             if (null == googleCredentials) {
-                UserCredentials.Builder credentialsBuilder = UserCredentials.newBuilder()
-                        .setClientId(getClientId())
-                        .setClientSecret(SecurityUtil.decrypt(getClientSecret()));
+                UserCredentials.Builder credentialsBuilder = UserCredentials.newBuilder();
+
+                Optional<String> httpProxyHost = Optional.ofNullable(System.getProperty("http.proxyHost"));
+                Optional<String> httpProxyPort = Optional.ofNullable(System.getProperty("http.proxyPort"));
+                Optional<String> httpsProxyHost = Optional.ofNullable(System.getProperty("https.proxyHost"));
+                Optional<String> httpsProxyPort = Optional.ofNullable(System.getProperty("https.proxyPort"));
+                Optional<String> socksProxyHost = Optional.ofNullable(System.getProperty("socksProxyHost"));
+                Optional<String> socksProxyPort = Optional.ofNullable(System.getProperty("socksProxyPort"));
+                Proxy.Type proxyType =
+                        (httpProxyHost.isPresent() && httpProxyPort.isPresent())
+                                || (httpsProxyHost.isPresent() && httpsProxyPort.isPresent())
+                                ? Proxy.Type.HTTP
+                                : socksProxyHost.isPresent() && socksProxyPort.isPresent()
+                                        ? Proxy.Type.SOCKS
+                                        : Proxy.Type.DIRECT;
+                
+                if (Proxy.Type.HTTP == proxyType) {
+                    HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+                    clientBuilder.useSystemProperties();
+                    clientBuilder.setProxy(httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
+                            ? new HttpHost(httpsProxyHost.get(),
+                            Integer.parseInt(httpsProxyPort.get()))
+                            : new HttpHost(httpProxyHost.get(),
+                                    Integer.parseInt(httpProxyPort.get())));
+                    credentialsBuilder.setHttpTransportFactory(new HttpTransportFactory() {
+                        @Override
+                        public HttpTransport create() {
+                            return new ApacheHttpTransport(clientBuilder.build());
+                        }
+                    });
+                }
+                credentialsBuilder.setClientId(getClientId()).setClientSecret(SecurityUtil.decrypt(getClientSecret()));
 
                 getRefreshToken().access(chars -> credentialsBuilder.setRefreshToken(new String(chars)));
 
@@ -243,11 +274,24 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP,
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
 
+                HttpTransport httpTransport = Proxy.Type.DIRECT == proxyType
+                        ? new NetHttpTransport()
+                        : new NetHttpTransport.Builder().setProxy(new Proxy(proxyType,
+                                        Proxy.Type.SOCKS == proxyType
+                                                ? new InetSocketAddress(socksProxyHost.get(),
+                                                Integer.parseInt(socksProxyHost.get()))
+                                                : httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
+                                                        ? new InetSocketAddress(httpsProxyHost.get(),
+                                                        Integer.parseInt(httpsProxyPort.get()))
+                                                        : new InetSocketAddress(httpProxyHost.get(),
+                                                                Integer.parseInt(httpProxyPort.get()))))
+                                .build();
+
                 HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(googleCredentials);
-                directory = new Directory.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
+                directory = new Directory.Builder(httpTransport, JSON_FACTORY, requestInitializer).
                         setApplicationName(APPLICATION_NAME).
                         build();
-                licensing = new Licensing.Builder(HTTP_TRANSPORT, JSON_FACTORY, requestInitializer).
+                licensing = new Licensing.Builder(httpTransport, JSON_FACTORY, requestInitializer).
                         setApplicationName(APPLICATION_NAME).
                         build();
             }
