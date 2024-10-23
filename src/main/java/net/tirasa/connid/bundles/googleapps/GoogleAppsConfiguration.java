@@ -43,12 +43,7 @@ import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.ProxyAuthenticationStrategy;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
@@ -103,17 +98,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
 
     private boolean removeLicenseOnDisable = false;
 
-    // proxy configuration section
-    private String proxyServerType = Proxy.Type.HTTP.name();
-
-    private String proxyServerHost;
-
-    private Integer proxyServerPort;
-
-    private String proxyServerUser;
-
-    private String proxyServerPassword;
-    
     @ConfigurationProperty(order = 1, displayMessageKey = "domain.display",
             groupMessageKey = "basic.group", helpMessageKey = "domain.help", required = true,
             confidential = false)
@@ -209,61 +193,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
         this.removeLicenseOnDisable = removeLicenseOnDisable;
     }
 
-    @ConfigurationProperty(displayMessageKey = "proxyServerType.display",
-            helpMessageKey = "proxyServerType.help",
-            order = 10)
-    public String getProxyServerType() {
-        return proxyServerType;
-    }
-
-    public void setProxyServerType(final String proxyServerType) {
-        this.proxyServerType = proxyServerType;
-    }
-
-    @ConfigurationProperty(displayMessageKey = "proxyServerHost.display",
-            helpMessageKey = "proxyServerHost.help",
-            order = 11)
-    public String getProxyServerHost() {
-        return proxyServerHost;
-    }
-
-    public void setProxyServerHost(final String proxyServerHost) {
-        this.proxyServerHost = proxyServerHost;
-    }
-
-    @ConfigurationProperty(displayMessageKey = "proxyServerPort.display",
-            helpMessageKey = "proxyServerPort.help",
-            order = 12)
-    public Integer getProxyServerPort() {
-        return proxyServerPort;
-    }
-
-    public void setProxyServerPort(final Integer proxyServerPort) {
-        this.proxyServerPort = proxyServerPort;
-    }
-
-    @ConfigurationProperty(displayMessageKey = "proxyServerUser.display",
-            helpMessageKey = "proxyServerUser.help",
-            order = 13)
-    public String getProxyServerUser() {
-        return proxyServerUser;
-    }
-
-    public void setProxyServerUser(final String proxyServerUser) {
-        this.proxyServerUser = proxyServerUser;
-    }
-
-    @ConfigurationProperty(displayMessageKey = "proxyServerPassword.display",
-            helpMessageKey = "proxyServerPassword.help",
-            order = 14, confidential = true)
-    public String getProxyServerPassword() {
-        return proxyServerPassword;
-    }
-
-    public void setProxyServerPassword(final String proxyServerPassword) {
-        this.proxyServerPassword = proxyServerPassword;
-    }
-    
     @Override
     public void validate() {
         if (StringUtil.isBlank(domain)) {
@@ -293,17 +222,6 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                 throw new ConfigurationException("'customSchemaJSON' parameter must be a valid JSON.");
             }
         }
-        if (StringUtil.isNotBlank(proxyServerHost) && proxyServerPort == null
-                || StringUtil.isBlank(proxyServerHost) && proxyServerPort != null) {
-            throw new ConfigurationException("Proxy host and port cannot be empty.");
-        }
-
-        if (StringUtil.isNotBlank(proxyServerUser) && StringUtil.isBlank(proxyServerPassword)) {
-            throw new ConfigurationException("Proxy server password cannot be null or empty if user is specified.");
-        }
-        if (StringUtil.isNotBlank(proxyServerPassword) && StringUtil.isBlank(proxyServerUser)) {
-            throw new ConfigurationException("Proxy server user cannot be null or empty if password is specified.");
-        }
     }
 
     private void initGoogleCredentials() {
@@ -311,19 +229,24 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
             if (null == googleCredentials) {
                 UserCredentials.Builder credentialsBuilder = UserCredentials.newBuilder();
 
-                boolean proxyEnabled = StringUtil.isNotBlank(proxyServerHost) && proxyServerPort != null;
-                if (proxyEnabled) {
+                Proxy.Type proxyType =
+                        (System.getProperty("http.proxyHost") != null && System.getProperty("http.proxyPort") != null)
+                                || (System.getProperty("https.proxyHost") != null
+                                && System.getProperty("https.proxyPort") != null)
+                                ? Proxy.Type.HTTP
+                                : System.getProperty("socksProxyHost") != null
+                                        && System.getProperty("socksProxyPort") != null
+                                        ? Proxy.Type.SOCKS
+                                        : Proxy.Type.DIRECT;
+                
+                if (Proxy.Type.HTTP == proxyType) {
                     HttpClientBuilder clientBuilder = HttpClientBuilder.create();
                     clientBuilder.useSystemProperties();
-                    clientBuilder.setProxy(new HttpHost(proxyServerHost, proxyServerPort));
-                    if (StringUtil.isNotBlank(proxyServerUser) && StringUtil.isNotBlank(proxyServerPassword)) {
-                        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-                        credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
-                                new UsernamePasswordCredentials(proxyServerUser, proxyServerPassword));
-                        clientBuilder.setDefaultCredentialsProvider(credsProvider);
-                        clientBuilder.setProxyAuthenticationStrategy(new ProxyAuthenticationStrategy());
-                    }
-
+                    clientBuilder.setProxy(System.getProperty("https.proxyHost") != null 
+                            ? new HttpHost(System.getProperty("https.proxyHost"),
+                            Integer.parseInt(System.getProperty("https.proxyPort")))
+                            : new HttpHost(System.getProperty("http.proxyHost"),
+                                    Integer.parseInt(System.getProperty("http.proxyPort"))));
                     credentialsBuilder.setHttpTransportFactory(new HttpTransportFactory() {
                         @Override
                         public HttpTransport create() {
@@ -346,11 +269,19 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP,
                         DirectoryScopes.ADMIN_DIRECTORY_GROUP_MEMBER));
 
-                HttpTransport httpTransport = proxyEnabled
-                        ? new NetHttpTransport.Builder().setProxy(
-                        new Proxy(Proxy.Type.valueOf(proxyServerType.toUpperCase()),
-                                new InetSocketAddress(proxyServerHost, proxyServerPort))).build()
-                        : new NetHttpTransport();
+                HttpTransport httpTransport = Proxy.Type.DIRECT == proxyType
+                        ? new NetHttpTransport()
+                        : new NetHttpTransport.Builder().setProxy(new Proxy(proxyType,
+                                        Proxy.Type.SOCKS == proxyType
+                                                ? new InetSocketAddress(System.getProperty("socksProxyHost"),
+                                                Integer.parseInt(System.getProperty("socksProxyHost")))
+                                                : System.getProperty("https.proxyHost") != null
+                                                        ? new InetSocketAddress(System.getProperty("https.proxyHost"),
+                                                        Integer.parseInt(System.getProperty("https.proxyPort")))
+                                                        : new InetSocketAddress(System.getProperty("http.proxyHost"),
+                                                                Integer.parseInt(
+                                                                        System.getProperty("http.proxyPort")))))
+                                .build();
 
                 HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(googleCredentials);
                 directory = new Directory.Builder(httpTransport, JSON_FACTORY, requestInitializer).

@@ -60,6 +60,10 @@ public class GoogleAppsConnectorUnitTests {
 
     @BeforeAll
     public static void setUp() throws IOException {
+        
+        System.setProperty("http.proxyHost", "localhost");
+        System.setProperty("http.proxyPort", "3128");
+        
         CONN_CONF = new GoogleAppsConfiguration();
 
         CONN_CONF.setClientId("aclientid");
@@ -96,9 +100,6 @@ public class GoogleAppsConnectorUnitTests {
                 + "}]"
                 + "}]");
 
-        CONN_CONF.setProxyServerHost("localhost");
-        CONN_CONF.setProxyServerPort(3128);
-        
         CONNECTOR = newFacade();
     }
 
