@@ -95,6 +95,7 @@ public class GoogleAppsUpdate {
                     }
                 });
             }
+
             Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
             if (null != groups && null != groups.getValue()) {
                 final Directory.Members service = configuration.getDirectory().members();
@@ -181,6 +182,7 @@ public class GoogleAppsUpdate {
                     }
                 }
             }
+
             // GOOGLEAPPS-9
             // license management: if remove license param is true and __ENABLE__ is false perform delete license
             // license read must be performed with the user primaryEmail, userId is not allowed
@@ -249,6 +251,7 @@ public class GoogleAppsUpdate {
                     }
                 });
             }
+
             Attribute members = accessor.find(GoogleAppsUtil.MEMBERS_ATTR);
             if (null != members && null != members.getValue()) {
                 final Directory.Members service = configuration.getDirectory().members();

@@ -26,6 +26,7 @@ package net.tirasa.connid.bundles.googleapps;
 import static net.tirasa.connid.bundles.googleapps.GoogleApiExecutor.execute;
 
 import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.model.Alias;
 import com.google.api.services.directory.model.Group;
 import com.google.api.services.directory.model.Groups;
 import com.google.common.base.CharMatcher;
@@ -334,6 +335,30 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
     }
 
+    public static Directory.Groups.Aliases.Insert createGroupAlias(
+            final Directory.Groups.Aliases service, final String groupKey, final String alias) {
+
+        Alias content = new Alias();
+        content.setAlias(alias);
+        try {
+            return service.insert(groupKey, content).setFields(GoogleAppsUtil.ID_ETAG);
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Aliases#Insert");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
+    public static Directory.Groups.Aliases.Delete deleteGroupAlias(
+            final Directory.Groups.Aliases service, final String groupKey, final String alias) {
+
+        try {
+            return service.delete(groupKey, alias);
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Aliases#Delete");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
     private static void set(final AtomicReference<Group> content, final Consumer<Group> consumer) {
         if (content.get() == null) {
             content.set(new Group());
@@ -444,9 +469,9 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         builder.setObjectClass(ObjectClass.GROUP);
 
         if (null != group.getEtag()) {
-            builder.setUid(new Uid(group.getEmail(), group.getEtag()));
+            builder.setUid(new Uid(group.getId(), group.getEtag()));
         } else {
-            builder.setUid(group.getEmail());
+            builder.setUid(group.getId());
         }
         builder.setName(group.getEmail());
 
@@ -484,5 +509,4 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
 
         return builder.build();
     }
-
 }

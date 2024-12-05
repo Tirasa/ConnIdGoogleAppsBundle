@@ -37,7 +37,7 @@ import org.identityconnectors.test.common.TestHelpers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class GoogleAppsConnectorUnitTests {
+class GoogleAppsConnectorUnitTests {
 
     public static class GoogleAppsTestConnector extends GoogleAppsConnector {
 
@@ -59,11 +59,7 @@ public class GoogleAppsConnectorUnitTests {
     }
 
     @BeforeAll
-    public static void setUp() throws IOException {
-        
-        System.setProperty("http.proxyHost", "localhost");
-        System.setProperty("http.proxyPort", "3128");
-        
+    static void setUp() throws IOException {
         CONN_CONF = new GoogleAppsConfiguration();
 
         CONN_CONF.setClientId("aclientid");
@@ -104,12 +100,12 @@ public class GoogleAppsConnectorUnitTests {
     }
 
     @Test
-    public void validate() {
+    void validate() {
         CONNECTOR.validate();
     }
 
     @Test
-    public void schema() {
+    void schema() {
         Schema schema = CONNECTOR.schema();
         boolean accountFound = false;
         boolean customSingleValuedSchemaFound1 = false;

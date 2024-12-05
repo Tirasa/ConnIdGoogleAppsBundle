@@ -68,61 +68,29 @@ public class GoogleAppsCreate {
         this.createAttributes = createAttributes;
     }
 
-    public Uid execute() {
-        final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
+    private Uid createUser(final AttributesAccessor accessor) {
+        Uid uid = GoogleApiExecutor.execute(UserHandler.createUser(
+                configuration.getDirectory().users(), accessor, configuration.getCustomSchemasJSON()),
+                new RequestResultHandler<Directory.Users.Insert, User, Uid>() {
 
-        if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            Uid uid = GoogleApiExecutor.execute(UserHandler.createUser(
-                    configuration.getDirectory().users(), accessor, configuration.getCustomSchemasJSON()),
-                    new RequestResultHandler<Directory.Users.Insert, User, Uid>() {
-
-                @Override
-                public Uid handleResult(final Directory.Users.Insert request, final User value) {
-                    LOG.ok("New User is created: {0}", value.getId());
-                    return new Uid(value.getId(), value.getEtag());
-                }
-            });
-
-            List<Object> aliases = accessor.findList(GoogleAppsUtil.ALIASES_ATTR);
-            if (null != aliases) {
-                final Directory.Users.Aliases aliasesService = configuration.getDirectory().users().aliases();
-                for (Object member : aliases) {
-                    if (member instanceof String) {
-                        String id = GoogleApiExecutor.execute(
-                                UserHandler.createUserAlias(aliasesService, uid.getUidValue(), (String) member),
-                                new RequestResultHandler<Directory.Users.Aliases.Insert, Alias, String>() {
-
-                            @Override
-                            public String handleResult(
-                                    final Directory.Users.Aliases.Insert request, final Alias value) {
-
-                                return value == null ? null : value.getId();
-                            }
-                        });
-
-                        if (null == id) {
-                            // TODO make warn about failed update
-                        }
-                    } else if (null != member) {
-                        // Delete user and Error or
-                        RetryableException e =
-                                RetryableException.wrap("Invalid attribute value: " + String.valueOf(member), uid);
-                        e.initCause(new InvalidAttributeValueException("Attribute 'aliases' must be a String list"));
-                        throw e;
-                    }
-                }
+            @Override
+            public Uid handleResult(final Directory.Users.Insert request, final User value) {
+                LOG.ok("New User is created: {0} with ETag {1}", value.getId(), value.getEtag());
+                return new Uid(value.getId(), value.getEtag());
             }
+        });
 
-            Attribute photo = accessor.find(GoogleAppsUtil.PHOTO_ATTR);
-            if (null != photo) {
-                Object photoObject = AttributeUtil.getSingleValue(photo);
-                if (photoObject instanceof byte[]) {
-                    String id = GoogleApiExecutor.execute(UserHandler.createUpdateUserPhoto(
-                            configuration.getDirectory().users().photos(), uid.getUidValue(), (byte[]) photoObject),
-                            new RequestResultHandler<Directory.Users.Photos.Update, UserPhoto, String>() {
+        List<Object> aliases = accessor.findList(GoogleAppsUtil.ALIASES_ATTR);
+        if (null != aliases) {
+            final Directory.Users.Aliases aliasesService = configuration.getDirectory().users().aliases();
+            for (Object alias : aliases) {
+                if (alias instanceof String) {
+                    String id = GoogleApiExecutor.execute(
+                            UserHandler.createUserAlias(aliasesService, uid.getUidValue(), (String) alias),
+                            new RequestResultHandler<Directory.Users.Aliases.Insert, Alias, String>() {
 
                         @Override
-                        public String handleResult(final Directory.Users.Photos.Update request, final UserPhoto value) {
+                        public String handleResult(final Directory.Users.Aliases.Insert request, final Alias value) {
                             return value == null ? null : value.getId();
                         }
                     });
@@ -130,135 +98,191 @@ public class GoogleAppsCreate {
                     if (null == id) {
                         // TODO make warn about failed update
                     }
-                } else if (null != photoObject) {
-                    // Delete group and Error or
-                    RetryableException e = RetryableException.wrap(
-                            "Invalid attribute value: " + String.valueOf(photoObject), uid);
-                    e.initCause(new InvalidAttributeValueException("Attribute 'photo' must be a single byte[] value"));
+                } else if (null != alias) {
+                    // Delete user and Error or
+                    RetryableException e =
+                            RetryableException.wrap("Invalid attribute value: " + String.valueOf(alias), uid);
+                    e.initCause(new InvalidAttributeValueException("Attribute 'aliases' must be a String list"));
                     throw e;
                 }
             }
+        }
 
-            Attribute isAdmin = accessor.find(GoogleAppsUtil.IS_ADMIN_ATTR);
-            if (null != isAdmin) {
-                try {
-                    Boolean isAdminValue = AttributeUtil.getBooleanValue(isAdmin);
-                    if (null != isAdminValue && isAdminValue) {
-                        UserMakeAdmin content = new UserMakeAdmin();
-                        content.setStatus(isAdminValue);
+        Attribute photo = accessor.find(GoogleAppsUtil.PHOTO_ATTR);
+        if (null != photo) {
+            Object photoObject = AttributeUtil.getSingleValue(photo);
+            if (photoObject instanceof byte[]) {
+                String id = GoogleApiExecutor.execute(UserHandler.createUpdateUserPhoto(
+                        configuration.getDirectory().users().photos(), uid.getUidValue(), (byte[]) photoObject),
+                        new RequestResultHandler<Directory.Users.Photos.Update, UserPhoto, String>() {
 
-                        GoogleApiExecutor.execute(
-                                configuration.getDirectory().users().makeAdmin(uid.getUidValue(), content),
-                                new RequestResultHandler<Directory.Users.MakeAdmin, Void, Void>() {
-
-                            @Override
-                            public Void handleResult(final Directory.Users.MakeAdmin request, final Void value) {
-                                return null;
-                            }
-                        });
+                    @Override
+                    public String handleResult(final Directory.Users.Photos.Update request, final UserPhoto value) {
+                        return value == null ? null : value.getId();
                     }
-                } catch (final Exception e) {
-                    // TODO Delete user and throw Exception
-                    throw ConnectorException.wrap(e);
+                });
+
+                if (null == id) {
+                    // TODO make warn about failed update
                 }
+            } else if (null != photoObject) {
+                // Delete group and Error or
+                RetryableException e = RetryableException.wrap(
+                        "Invalid attribute value: " + String.valueOf(photoObject), uid);
+                e.initCause(new InvalidAttributeValueException("Attribute 'photo' must be a single byte[] value"));
+                throw e;
             }
+        }
 
-            Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
-            if (null != groups && null != groups.getValue()) {
-                final Directory.Members service = configuration.getDirectory().members();
-                if (!groups.getValue().isEmpty()) {
-                    final List<Directory.Members.Insert> addGroups = new ArrayList<>();
+        Attribute isAdmin = accessor.find(GoogleAppsUtil.IS_ADMIN_ATTR);
+        if (null != isAdmin) {
+            try {
+                Boolean isAdminValue = AttributeUtil.getBooleanValue(isAdmin);
+                if (null != isAdminValue && isAdminValue) {
+                    UserMakeAdmin content = new UserMakeAdmin();
+                    content.setStatus(isAdminValue);
 
-                    for (Object member : groups.getValue()) {
-                        if (member instanceof String) {
-                            String email = accessor.getName().getNameValue();
-                            addGroups.add(MembersHandler.create(service, (String) member, email, null));
-                        } else if (null != member) {
-                            // throw error/revert?
-                            throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
+                    GoogleApiExecutor.execute(
+                            configuration.getDirectory().users().makeAdmin(uid.getUidValue(), content),
+                            new RequestResultHandler<Directory.Users.MakeAdmin, Void, Void>() {
+
+                        @Override
+                        public Void handleResult(final Directory.Users.MakeAdmin request, final Void value) {
+                            return null;
                         }
-                    }
-
-                    // Add new Member object
-                    for (Directory.Members.Insert insert : addGroups) {
-                        GoogleApiExecutor.execute(insert,
-                                new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
-
-                            @Override
-                            public Object handleResult(final Directory.Members.Insert request, final Member value) {
-                                return null;
-                            }
-
-                            @Override
-                            public Object handleDuplicate(final IOException e) {
-                                // Do nothing
-                                return null;
-                            }
-                        });
-                    }
+                    });
                 }
+            } catch (final Exception e) {
+                // TODO Delete user and throw Exception
+                throw ConnectorException.wrap(e);
             }
+        }
 
-            return uid;
-        } else if (ObjectClass.GROUP.equals(objectClass)) {
-            // @formatter:off
-            /* AlreadyExistsException
-             * {
-             * "code" : 409,
-             * "errors" : [ {
-             * "domain" : "global",
-             * "message" : "Entity already exists.",
-             * "reason" : "duplicate"
-             * } ],
-             * "message" : "Entity already exists."
-             * }
-             */
-            // @formatter:on
-            Uid uid = GoogleApiExecutor.execute(
-                    GroupHandler.create(configuration.getDirectory().groups(), accessor),
-                    new RequestResultHandler<Directory.Groups.Insert, Group, Uid>() {
+        Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
+        if (null != groups && null != groups.getValue()) {
+            final Directory.Members service = configuration.getDirectory().members();
+            if (!groups.getValue().isEmpty()) {
+                final List<Directory.Members.Insert> addGroups = new ArrayList<>();
 
-                @Override
-                public Uid handleResult(final Directory.Groups.Insert request,
-                        final Group value) {
-                    LOG.ok("New Group is created:{0}", value.getEmail());
-                    return new Uid(value.getEmail(), value.getEtag());
+                for (Object group : groups.getValue()) {
+                    if (group instanceof String) {
+                        String email = accessor.getName().getNameValue();
+                        addGroups.add(MembersHandler.create(service, (String) group, email, null));
+                    } else if (null != group) {
+                        // throw error/revert?
+                        throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
+                    }
                 }
-            });
-            List<Object> members = accessor.findList(GoogleAppsUtil.MEMBERS_ATTR);
-            if (null != members) {
-                final Directory.Members membersService = configuration.getDirectory().members();
-                for (Object member : members) {
-                    if (member instanceof Map) {
-                        String email = (String) ((Map) member).get(GoogleAppsUtil.EMAIL_ATTR);
-                        String role = (String) ((Map) member).get(GoogleAppsUtil.ROLE_ATTR);
 
-                        String id = GoogleApiExecutor.execute(
-                                MembersHandler.create(membersService, uid.getUidValue(), email, role),
-                                new RequestResultHandler<Directory.Members.Insert, Member, String>() {
+                // Add new Member object
+                for (Directory.Members.Insert insert : addGroups) {
+                    GoogleApiExecutor.execute(insert,
+                            new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
 
-                            @Override
-                            public String handleResult(final Directory.Members.Insert request, final Member value) {
-
-                                return value == null ? null : value.getId();
-                            }
-                        });
-
-                        if (null == id) {
-                            // TODO make warn about failed update
+                        @Override
+                        public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                            return null;
                         }
-                    } else if (null != member) {
-                        // Delete group and Error or
-                        RetryableException e =
-                                RetryableException.wrap("Invalid attribute value: " + String.valueOf(member), uid);
-                        e.initCause(new InvalidAttributeValueException("Attribute 'members' must be a Map list"));
-                        throw e;
-                    }
+
+                        @Override
+                        public Object handleDuplicate(final IOException e) {
+                            // Do nothing
+                            return null;
+                        }
+                    });
                 }
             }
+        }
 
-            return uid;
-        } else if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
+        return uid;
+    }
+
+    private Uid createGroup(final AttributesAccessor accessor) {
+        Uid uid = GoogleApiExecutor.execute(
+                GroupHandler.create(configuration.getDirectory().groups(), accessor),
+                new RequestResultHandler<Directory.Groups.Insert, Group, Uid>() {
+
+            @Override
+            public Uid handleResult(final Directory.Groups.Insert request, final Group value) {
+                LOG.ok("New Group is created:{0}", value.getEmail());
+                return new Uid(value.getId(), value.getEtag());
+            }
+        });
+
+        List<Object> aliases = accessor.findList(GoogleAppsUtil.ALIASES_ATTR);
+        if (null != aliases) {
+            final Directory.Groups.Aliases aliasesService = configuration.getDirectory().groups().aliases();
+            for (Object alias : aliases) {
+                if (alias instanceof String) {
+                    String id = GoogleApiExecutor.execute(
+                            GroupHandler.createGroupAlias(aliasesService, uid.getUidValue(), (String) alias),
+                            new RequestResultHandler<Directory.Groups.Aliases.Insert, Alias, String>() {
+
+                        @Override
+                        public String handleResult(final Directory.Groups.Aliases.Insert request, final Alias value) {
+                            return value == null ? null : value.getId();
+                        }
+                    });
+
+                    if (null == id) {
+                        // TODO make warn about failed update
+                    }
+                } else if (null != alias) {
+                    // Delete group and Error or
+                    RetryableException e =
+                            RetryableException.wrap("Invalid attribute value: " + String.valueOf(alias), uid);
+                    e.initCause(new InvalidAttributeValueException("Attribute 'aliases' must be a String list"));
+                    throw e;
+                }
+            }
+        }
+        
+        List<Object> members = accessor.findList(GoogleAppsUtil.MEMBERS_ATTR);
+        if (null != members) {
+            final Directory.Members membersService = configuration.getDirectory().members();
+            for (Object member : members) {
+                if (member instanceof Map) {
+                    String email = (String) ((Map) member).get(GoogleAppsUtil.EMAIL_ATTR);
+                    String role = (String) ((Map) member).get(GoogleAppsUtil.ROLE_ATTR);
+
+                    String id = GoogleApiExecutor.execute(
+                            MembersHandler.create(membersService, uid.getUidValue(), email, role),
+                            new RequestResultHandler<Directory.Members.Insert, Member, String>() {
+
+                        @Override
+                        public String handleResult(final Directory.Members.Insert request, final Member value) {
+                            return value == null ? null : value.getId();
+                        }
+                    });
+
+                    if (null == id) {
+                        // TODO make warn about failed update
+                    }
+                } else if (null != member) {
+                    // Delete group and Error or
+                    RetryableException e =
+                            RetryableException.wrap("Invalid attribute value: " + String.valueOf(member), uid);
+                    e.initCause(new InvalidAttributeValueException("Attribute 'members' must be a Map list"));
+                    throw e;
+                }
+            }
+        }
+
+        return uid;
+    }
+
+    public Uid execute() {
+        final AttributesAccessor accessor = new AttributesAccessor(createAttributes);
+
+        if (ObjectClass.ACCOUNT.equals(objectClass)) {
+            return createUser(accessor);
+        }
+
+        if (ObjectClass.GROUP.equals(objectClass)) {
+            return createGroup(accessor);
+        }
+
+        if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
             return GoogleApiExecutor.execute(
                     MembersHandler.create(configuration.getDirectory().members(), accessor),
                     new RequestResultHandler<Directory.Members.Insert, Member, Uid>() {
@@ -269,7 +293,9 @@ public class GoogleAppsCreate {
                     return MembersHandler.generateUid(request.getGroupKey(), value);
                 }
             });
-        } else if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
+        }
+
+        if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
             return GoogleApiExecutor.execute(
                     OrgunitsHandler.create(configuration.getDirectory().orgunits(), accessor),
                     new RequestResultHandler<Directory.Orgunits.Insert, OrgUnit, Uid>() {
@@ -280,7 +306,9 @@ public class GoogleAppsCreate {
                     return OrgunitsHandler.generateUid(value);
                 }
             });
-        } else if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
+        }
+
+        if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
             // @formatter:off
             /* AlreadyExistsException
              * {
@@ -309,11 +337,11 @@ public class GoogleAppsCreate {
                     return LicenseAssignmentsHandler.generateUid(value);
                 }
             });
-        } else {
-            LOG.warn("Create of type {0} is not supported", configuration.getConnectorMessages()
-                    .format(objectClass.getDisplayNameKey(), objectClass.getObjectClassValue()));
-            throw new UnsupportedOperationException("Create of type"
-                    + objectClass.getObjectClassValue() + " is not supported");
         }
+
+        LOG.warn("Create of type {0} is not supported", configuration.getConnectorMessages()
+                .format(objectClass.getDisplayNameKey(), objectClass.getObjectClassValue()));
+        throw new UnsupportedOperationException("Create of type"
+                + objectClass.getObjectClassValue() + " is not supported");
     }
 }
