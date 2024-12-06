@@ -51,12 +51,6 @@ public final class MembersHandler {
     private static final Log LOG = Log.getLog(MembersHandler.class);
 
     public static ObjectClassInfo getObjectClassInfo() {
-        // @formatter:off
-        /*
-         * {
-         * }
-         */
-        // @formatter:on
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
         builder.setType(GoogleAppsUtil.MEMBER.getObjectClassValue());
         builder.addAttributeInfo(AttributeInfoBuilder.define(Name.NAME).setUpdateable(false).

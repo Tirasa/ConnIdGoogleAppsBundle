@@ -325,9 +325,7 @@ public class GoogleAppsCreate {
             });
         }
 
-        LOG.warn("Create of type {0} is not supported", configuration.getConnectorMessages()
-                .format(objectClass.getDisplayNameKey(), objectClass.getObjectClassValue()));
-        throw new UnsupportedOperationException("Create of type"
+        throw new UnsupportedOperationException("Create of type "
                 + objectClass.getObjectClassValue() + " is not supported");
     }
 }

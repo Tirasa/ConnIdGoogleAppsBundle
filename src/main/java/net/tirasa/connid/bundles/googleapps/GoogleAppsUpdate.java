@@ -573,9 +573,7 @@ public class GoogleAppsUpdate {
                 });
             }
         } else {
-            LOG.warn("Update of type {0} is not supported", configuration.getConnectorMessages()
-                    .format(objectClass.getDisplayNameKey(), objectClass.getObjectClassValue()));
-            throw new UnsupportedOperationException("Update of type"
+            throw new UnsupportedOperationException("Update of type "
                     + objectClass.getObjectClassValue() + " is not supported");
         }
         return uidAfterUpdate;
@@ -890,7 +888,7 @@ public class GoogleAppsUpdate {
                 });
             }
         } else {
-            throw new UnsupportedOperationException("Update delta of type"
+            throw new UnsupportedOperationException("Update delta of type "
                     + objectClass.getObjectClassValue() + " is not supported");
         }
 

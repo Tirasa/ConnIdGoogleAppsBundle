@@ -277,26 +277,6 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     //
     // /////////////
     public static ObjectClassInfo getObjectClassInfo() {
-        // @formatter:off
-        /* GROUP from https://devsite.googleplex.com/admin-sdk/directory/v1/reference/groups#resource
-         * {
-         * "kind": "admin#directory#group",
-         * "id": string,
-         * "etag": etag,
-         * "email": string,
-         * "name": string,
-         * "directMembersCount": long,
-         * "description": string,
-         * "adminCreated": boolean,
-         * "aliases": [
-         * string
-         * ],
-         * "nonEditableAliases": [
-         * string
-         * ]
-         * }
-         */
-        // @formatter:on
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
         builder.setType(ObjectClass.GROUP_NAME);
         // email

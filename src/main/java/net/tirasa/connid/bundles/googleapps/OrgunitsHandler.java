@@ -66,19 +66,6 @@ public final class OrgunitsHandler {
     //
     // /////////////
     public static ObjectClassInfo getObjectClassInfo() {
-        // @formatter:off
-        /*
-         * {
-         * "kind": "admin#directory#orgUnit",
-         * "etag": etag,
-         * "name": string,
-         * "description": string,
-         * "orgUnitPath": string,
-         * "parentOrgUnitPath": string,
-         * "blockInheritance": boolean
-         * }
-         */
-        // @formatter:on
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
         builder.setType(GoogleAppsUtil.ORG_UNIT.getObjectClassValue());
         builder.setContainer(true);

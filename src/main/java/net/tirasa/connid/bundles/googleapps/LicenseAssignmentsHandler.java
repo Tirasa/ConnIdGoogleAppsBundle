@@ -71,18 +71,6 @@ public final class LicenseAssignmentsHandler {
     //
     // /////////////
     public static ObjectClassInfo getObjectClassInfo() {
-        // @formatter:off
-        /*
-         * {
-         * "kind": "licensing#licenseAssignment",
-         * "etags": etag,
-         * "selfLink": string,
-         * "userId": string,
-         * "productId": string,
-         * "skuId": string
-         * }
-         */
-        // @formatter:on
         ObjectClassInfoBuilder builder = new ObjectClassInfoBuilder();
         builder.setType(GoogleAppsUtil.LICENSE_ASSIGNMENT.getObjectClassValue());
         // productId
