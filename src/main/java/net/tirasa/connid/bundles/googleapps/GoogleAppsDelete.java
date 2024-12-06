@@ -63,19 +63,6 @@ public class GoogleAppsDelete {
             } else if (ObjectClass.GROUP.equals(objectClass)) {
                 directoryRequest = configuration.getDirectory().groups().delete(uid.getUidValue());
             } else if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
-                // @formatter:off
-                /* Already deleted
-                 * {
-                 * "code" : 400,
-                 * "errors" : [ {
-                 * "domain" : "global",
-                 * "message" : "Missing required field: memberKey",
-                 * "reason" : "required"
-                 * } ],
-                 * "message" : "Missing required field: memberKey"
-                 * }
-                 */
-                // @formatter:on
                 String[] ids = uid.getUidValue().split("/");
                 if (ids.length == 2) {
                     directoryRequest = configuration.getDirectory().members().delete(ids[0], ids[1]);

@@ -27,6 +27,7 @@ import static net.tirasa.connid.bundles.googleapps.GroupHandler.listGroups;
 import static net.tirasa.connid.bundles.googleapps.MembersHandler.listMembers;
 
 import com.google.api.services.directory.Directory;
+import com.google.api.services.directory.model.Alias;
 import com.google.api.services.directory.model.Group;
 import com.google.api.services.directory.model.Member;
 import com.google.api.services.directory.model.OrgUnit;
@@ -75,37 +76,160 @@ public class GoogleAppsUpdate {
         this.uid = uid;
     }
 
-    public Uid update(final Set<Attribute> replaceAttributes) {
-        final AttributesAccessor accessor = new AttributesAccessor(replaceAttributes);
-
+    private Uid updateUser(final AttributesAccessor accessor) {
         Uid uidAfterUpdate = uid;
-        if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            Directory.Users.Patch patch = UserHandler.updateUser(
-                    configuration.getDirectory().users(),
-                    uid.getUidValue(),
-                    accessor,
-                    configuration.getCustomSchemasJSON());
-            if (null != patch) {
-                uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
 
-                    @Override
-                    public Uid handleResult(final Directory.Users.Patch request, final User value) {
-                        LOG.ok("User is Updated:{0}", value.getId());
-                        return new Uid(value.getId(), value.getEtag());
+        Directory.Users.Patch patch = UserHandler.updateUser(
+                configuration.getDirectory().users(),
+                uid.getUidValue(),
+                accessor,
+                configuration.getCustomSchemasJSON());
+        if (null != patch) {
+            uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Users.Patch, User, Uid>() {
+
+                @Override
+                public Uid handleResult(final Directory.Users.Patch request, final User value) {
+                    LOG.ok("User is Updated:{0}", value.getId());
+                    return new Uid(value.getId(), value.getEtag());
+                }
+            });
+        }
+
+        List<Object> aliases = accessor.findList(GoogleAppsUtil.ALIASES_ATTR);
+        if (null != aliases) {
+            Directory.Users.Aliases service = configuration.getDirectory().users().aliases();
+            Set<String> currentAliases = UserHandler.listAliases(service, uidAfterUpdate.getUidValue());
+
+            if (aliases.isEmpty()) {
+                // Remove all aliases
+                for (Object alias : currentAliases) {
+                    execute(UserHandler.deleteUserAlias(service, uidAfterUpdate.getUidValue(), (String) alias),
+                            new RequestResultHandler<Directory.Users.Aliases.Delete, Void, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Users.Aliases.Delete request, final Void value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleNotFound(final IOException e) {
+                            // It may be an indirect membership, not able to delete
+                            return null;
+                        }
+                    });
+                }
+            } else {
+                List<Directory.Users.Aliases.Insert> addAliases = new ArrayList<>();
+                Set<String> keepAliases = CollectionUtil.newCaseInsensitiveSet();
+
+                for (Object alias : aliases) {
+                    if (currentAliases.contains(alias.toString())) {
+                        keepAliases.add((String) alias);
+                    } else {
+                        addAliases.add(
+                                UserHandler.createUserAlias(service, uidAfterUpdate.getUidValue(), (String) alias));
                     }
-                });
+                }
+
+                // Add new alias
+                for (Directory.Users.Aliases.Insert insert : addAliases) {
+                    execute(insert, new RequestResultHandler<Directory.Users.Aliases.Insert, Alias, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Users.Aliases.Insert insert, final Alias value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleDuplicate(final IOException e) {
+                            return null;
+                        }
+                    });
+                }
+
+                // Delete existing aliases
+                if (currentAliases.removeAll(keepAliases)) {
+                    for (Object alias : currentAliases) {
+                        execute(UserHandler.deleteUserAlias(service, (String) alias, uidAfterUpdate.getUidValue()),
+                                new RequestResultHandler<Directory.Users.Aliases.Delete, Void, Object>() {
+
+                            @Override
+                            public Object handleResult(final Directory.Users.Aliases.Delete request, final Void value) {
+                                return null;
+                            }
+
+                            @Override
+                            public Object handleNotFound(final IOException e) {
+                                return null;
+                            }
+                        });
+                    }
+                }
             }
+        }
 
-            Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
-            if (null != groups && null != groups.getValue()) {
-                final Directory.Members service = configuration.getDirectory().members();
-                if (groups.getValue().isEmpty()) {
-                    // Remove all membership
-                    for (String groupKey : listGroups(
-                            configuration.getDirectory().groups(),
-                            uidAfterUpdate.getUidValue(),
-                            configuration.getDomain())) {
+        Attribute groups = accessor.find(PredefinedAttributes.GROUPS_NAME);
+        if (null != groups && null != groups.getValue()) {
+            Directory.Members service = configuration.getDirectory().members();
+            Set<String> currentGroups = listGroups(
+                    configuration.getDirectory().groups(), uidAfterUpdate.getUidValue(), configuration.getDomain());
 
+            if (groups.getValue().isEmpty()) {
+                // Remove all membership
+                for (String groupKey : currentGroups) {
+                    execute(MembersHandler.delete(service, groupKey, uidAfterUpdate.getUidValue()),
+                            new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Members.Delete request, final Void value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleNotFound(final IOException e) {
+                            // It may be an indirect membership, not able to delete
+                            return null;
+                        }
+                    });
+                }
+            } else {
+                List<Directory.Members.Insert> addGroups = new ArrayList<>();
+                Set<String> keepGroups = CollectionUtil.newCaseInsensitiveSet();
+
+                for (Object member : groups.getValue()) {
+                    if (member instanceof String) {
+                        if (currentGroups.contains((String) member)) {
+                            keepGroups.add((String) member);
+                        } else {
+                            String email = accessor.getName().getNameValue();
+                            addGroups.add(MembersHandler.create(service, (String) member, email, null));
+                        }
+                    } else if (null != member) {
+                        // throw error/revert?
+                        throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
+                    }
+                }
+
+                // Add new Member object
+                for (Directory.Members.Insert insert : addGroups) {
+                    execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleDuplicate(final IOException e) {
+                            // Do nothing
+                            return null;
+                        }
+                    });
+                }
+
+                // Delete existing Member object
+                if (currentGroups.removeAll(keepGroups)) {
+                    for (String groupKey : currentGroups) {
                         execute(MembersHandler.delete(service, groupKey, uidAfterUpdate.getUidValue()),
                                 new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
@@ -121,145 +245,180 @@ public class GoogleAppsUpdate {
                             }
                         });
                     }
-                } else {
-                    final Set<String> activeGroups = listGroups(
-                            configuration.getDirectory().groups(),
-                            uidAfterUpdate.getUidValue(),
-                            configuration.getDomain());
-
-                    final List<Directory.Members.Insert> addGroups = new ArrayList<>();
-                    final Set<String> keepGroups = CollectionUtil.newCaseInsensitiveSet();
-
-                    for (Object member : groups.getValue()) {
-                        if (member instanceof String) {
-                            if (activeGroups.contains((String) member)) {
-                                keepGroups.add((String) member);
-                            } else {
-                                String email = accessor.getName().getNameValue();
-                                addGroups.add(MembersHandler.create(service, (String) member, email, null));
-                            }
-                        } else if (null != member) {
-                            // throw error/revert?
-                            throw new InvalidAttributeValueException("Attribute '__GROUPS__' must be a String list");
-                        }
-                    }
-
-                    // Add new Member object
-                    for (Directory.Members.Insert insert : addGroups) {
-                        execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
-
-                            @Override
-                            public Object handleResult(final Directory.Members.Insert request, final Member value) {
-                                return null;
-                            }
-
-                            @Override
-                            public Object handleDuplicate(final IOException e) {
-                                // Do nothing
-                                return null;
-                            }
-                        });
-                    }
-
-                    // Delete existing Member object
-                    if (activeGroups.removeAll(keepGroups)) {
-                        for (String groupKey : activeGroups) {
-                            execute(MembersHandler.delete(service, groupKey, uidAfterUpdate.getUidValue()),
-                                    new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
-
-                                @Override
-                                public Object handleResult(final Directory.Members.Delete request, final Void value) {
-                                    return null;
-                                }
-
-                                @Override
-                                public Object handleNotFound(final IOException e) {
-                                    // It may be an indirect membership, not able to delete
-                                    return null;
-                                }
-                            });
-                        }
-                    }
                 }
             }
+        }
 
-            // GOOGLEAPPS-9
-            // license management: if remove license param is true and __ENABLE__ is false perform delete license
-            // license read must be performed with the user primaryEmail, userId is not allowed
-            if (configuration.getRemoveLicenseOnDisable()
-                    && accessor.hasAttribute(OperationalAttributes.ENABLE_NAME)
-                    && !accessor.findBoolean(OperationalAttributes.ENABLE_NAME)
-                    && StringUtil.isNotBlank(accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR))) {
-                for (String skuId : configuration.getSkuIds()) {
-                    // 1. retrieve user license
-                    try {
-                        // use email as key
-                        Licensing.LicenseAssignments.Get request =
-                                configuration.getLicensing().licenseAssignments().get(
-                                        configuration.getProductId(),
-                                        skuId,
-                                        accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
-                        execute(request,
-                                new RequestResultHandler<
-                                        Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
+        // GOOGLEAPPS-9
+        // license management: if remove license param is true and __ENABLE__ is false perform delete license
+        // license read must be performed with the user primaryEmail, userId is not allowed
+        if (configuration.getRemoveLicenseOnDisable()
+                && accessor.hasAttribute(OperationalAttributes.ENABLE_NAME)
+                && !accessor.findBoolean(OperationalAttributes.ENABLE_NAME)
+                && StringUtil.isNotBlank(accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR))) {
 
-                            @Override
-                            public Boolean handleResult(
-                                    final Licensing.LicenseAssignments.Get request,
-                                    final LicenseAssignment value) {
+            for (String skuId : configuration.getSkuIds()) {
+                // 1. retrieve user license
+                try {
+                    // use email as key
+                    Licensing.LicenseAssignments.Get request =
+                            configuration.getLicensing().licenseAssignments().get(
+                                    configuration.getProductId(),
+                                    skuId,
+                                    accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
+                    execute(request,
+                            new RequestResultHandler<Licensing.LicenseAssignments.Get, LicenseAssignment, Boolean>() {
 
-                                try {
-                                    // 2. remove license
-                                    new GoogleAppsDelete(
-                                            configuration,
-                                            GoogleAppsUtil.LICENSE_ASSIGNMENT,
-                                            new Uid(GoogleAppsUtil.generateLicenseId(
-                                                    value.getProductId(),
-                                                    value.getSkuId(),
-                                                    value.getUserId()))).execute();
-                                } catch (Exception e) {
-                                    LOG.error(e, "Failed to delete license for user {0}", value.getUserId());
-                                    throw ConnectorException.wrap(e);
-                                }
-                                return true;
+                        @Override
+                        public Boolean handleResult(
+                                final Licensing.LicenseAssignments.Get request,
+                                final LicenseAssignment value) {
+
+                            try {
+                                // 2. remove license
+                                new GoogleAppsDelete(
+                                        configuration,
+                                        GoogleAppsUtil.LICENSE_ASSIGNMENT,
+                                        new Uid(GoogleAppsUtil.generateLicenseId(
+                                                value.getProductId(),
+                                                value.getSkuId(),
+                                                value.getUserId()))).execute();
+                            } catch (Exception e) {
+                                LOG.error(e, "Failed to delete license for user {0}", value.getUserId());
+                                throw ConnectorException.wrap(e);
                             }
+                            return true;
+                        }
 
-                            @Override
-                            public Boolean handleNotFound(final IOException e) {
-                                // Do nothing if not found
-                                return true;
-                            }
-                        });
-                    } catch (IOException e) {
-                        LOG.error(e, "Unable to find license for {0}-{1}-{2}", configuration.getProductId(), skuId,
-                                accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
-                    }
+                        @Override
+                        public Boolean handleNotFound(final IOException e) {
+                            // Do nothing if not found
+                            return true;
+                        }
+                    });
+                } catch (IOException e) {
+                    LOG.error(e, "Unable to find license for {0}-{1}-{2}", configuration.getProductId(), skuId,
+                            accessor.findString(GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
                 }
             }
-        } else if (ObjectClass.GROUP.equals(objectClass)) {
-            final Directory.Groups.Patch patch = GroupHandler.update(
-                    configuration.getDirectory().groups(),
-                    uid.getUidValue(),
-                    accessor);
-            if (null != patch) {
-                uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
+        }
 
-                    @Override
-                    public Uid handleResult(final Directory.Groups.Patch request, final Group value) {
-                        LOG.ok("Group is Updated:{0}", value.getEmail());
-                        return new Uid(value.getEmail(), value.getEtag());
+        return uidAfterUpdate;
+    }
+
+    private Uid updateGroup(final AttributesAccessor accessor) {
+        Uid uidAfterUpdate = uid;
+
+        Directory.Groups.Patch patch = GroupHandler.update(
+                configuration.getDirectory().groups(), uid.getUidValue(), accessor);
+        if (null != patch) {
+            uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Groups.Patch, Group, Uid>() {
+
+                @Override
+                public Uid handleResult(final Directory.Groups.Patch request, final Group value) {
+                    LOG.ok("Group is Updated:{0}", value.getId());
+                    return new Uid(value.getId(), value.getEtag());
+                }
+            });
+        }
+
+        Attribute members = accessor.find(GoogleAppsUtil.MEMBERS_ATTR);
+        if (null != members && null != members.getValue()) {
+            Directory.Members service = configuration.getDirectory().members();
+            if (members.getValue().isEmpty()) {
+                // Remove all membership
+                for (Map<String, String> member : listMembers(service, uidAfterUpdate.getUidValue(), null)) {
+                    execute(MembersHandler.delete(
+                            service, uidAfterUpdate.getUidValue(), member.get(GoogleAppsUtil.EMAIL_ATTR)),
+                            new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Members.Delete request, final Void value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleNotFound(final IOException e) {
+                            // Do nothing
+                            return null;
+                        }
+                    });
+                }
+            } else {
+                List<Map<String, String>> activeMembership = listMembers(service, uidAfterUpdate.getUidValue(), null);
+
+                List<Directory.Members.Insert> addMembership = new ArrayList<>();
+                List<Directory.Members.Patch> patchMembership = new ArrayList<>();
+
+                for (Object member : members.getValue()) {
+                    if (member instanceof Map) {
+                        String email = (String) ((Map) member).get(GoogleAppsUtil.EMAIL_ATTR);
+                        if (null == email) {
+                            continue;
+                        }
+                        String role = (String) ((Map) member).get(GoogleAppsUtil.ROLE_ATTR);
+                        if (null == role) {
+                            role = "MEMBER";
+                        }
+
+                        boolean notMember = true;
+                        for (Map<String, String> a : activeMembership) {
+                            // How to handle ROLE update?
+                            // OWNER -> MANAGER -> MEMBER
+                            if (email.equalsIgnoreCase(a.get(GoogleAppsUtil.EMAIL_ATTR))) {
+                                a.put("keep", null);
+                                if (!role.equalsIgnoreCase(a.get(GoogleAppsUtil.ROLE_ATTR))) {
+                                    patchMembership.add(MembersHandler.update(
+                                            service, uidAfterUpdate.getUidValue(), email, role));
+                                }
+                                notMember = false;
+                                break;
+                            }
+                        }
+                        if (notMember) {
+                            addMembership.add(MembersHandler.create(
+                                    service, uidAfterUpdate.getUidValue(), email, role));
+                        }
+                    } else if (null != member) {
+                        // throw error/revert?
+                        throw new InvalidAttributeValueException(
+                                "Attribute 'members' must be a Map list");
                     }
-                });
-            }
+                }
 
-            Attribute members = accessor.find(GoogleAppsUtil.MEMBERS_ATTR);
-            if (null != members && null != members.getValue()) {
-                final Directory.Members service = configuration.getDirectory().members();
-                if (members.getValue().isEmpty()) {
-                    // Remove all membership
-                    for (Map<String, String> member : listMembers(service, uidAfterUpdate.getUidValue(), null)) {
+                // Add new Member object
+                for (Directory.Members.Insert insert : addMembership) {
+                    execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleDuplicate(final IOException e) {
+                            // Do nothing
+                            return null;
+                        }
+                    });
+                }
+
+                // Update existing Member object
+                for (Directory.Members.Patch request : patchMembership) {
+                    execute(request, new RequestResultHandler<Directory.Members.Patch, Member, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Members.Patch request, final Member value) {
+                            return null;
+                        }
+                    });
+                }
+
+                // Delete existing Member object
+                for (Map<String, String> am : activeMembership) {
+                    if (!am.containsKey("keep")) {
                         execute(MembersHandler.delete(
-                                service, uidAfterUpdate.getUidValue(), member.get(GoogleAppsUtil.EMAIL_ATTR)),
+                                service, uidAfterUpdate.getUidValue(), am.get(GoogleAppsUtil.EMAIL_ATTR)),
                                 new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
 
                             @Override
@@ -274,105 +433,100 @@ public class GoogleAppsUpdate {
                             }
                         });
                     }
-                } else {
-                    final List<Map<String, String>> activeMembership =
-                            listMembers(service, uidAfterUpdate.getUidValue(), null);
+                }
+            }
+        }
 
-                    final List<Directory.Members.Insert> addMembership = new ArrayList<>();
-                    final List<Directory.Members.Patch> patchMembership = new ArrayList<>();
+        List<Object> aliases = accessor.findList(GoogleAppsUtil.ALIASES_ATTR);
+        if (null != aliases) {
+            Directory.Groups.Aliases service = configuration.getDirectory().groups().aliases();
+            Set<String> currentAliases = GroupHandler.listAliases(service, uidAfterUpdate.getUidValue());
 
-                    for (Object member : members.getValue()) {
-                        if (member instanceof Map) {
-                            String email = (String) ((Map) member).get(GoogleAppsUtil.EMAIL_ATTR);
-                            if (null == email) {
-                                continue;
-                            }
-                            String role = (String) ((Map) member).get(GoogleAppsUtil.ROLE_ATTR);
-                            if (null == role) {
-                                role = "MEMBER";
-                            }
+            if (aliases.isEmpty()) {
+                // Remove all aliases
+                for (Object alias : currentAliases) {
+                    execute(GroupHandler.deleteGroupAlias(service, uidAfterUpdate.getUidValue(), (String) alias),
+                            new RequestResultHandler<Directory.Groups.Aliases.Delete, Void, Object>() {
 
-                            boolean notMember = true;
-                            for (Map<String, String> a : activeMembership) {
-                                // How to handle ROLE update?
-                                // OWNER -> MANAGER -> MEMBER
-                                if (email.equalsIgnoreCase(a.get(GoogleAppsUtil.EMAIL_ATTR))) {
-                                    a.put("keep", null);
-                                    if (!role.equalsIgnoreCase(a.get(GoogleAppsUtil.ROLE_ATTR))) {
-                                        patchMembership.add(MembersHandler.update(
-                                                service, uidAfterUpdate.getUidValue(), email, role));
-                                    }
-                                    notMember = false;
-                                    break;
-                                }
-                            }
-                            if (notMember) {
-                                addMembership.add(MembersHandler.create(
-                                        service, uidAfterUpdate.getUidValue(), email, role));
-                            }
-                        } else if (null != member) {
-                            // throw error/revert?
-                            throw new InvalidAttributeValueException(
-                                    "Attribute 'members' must be a Map list");
+                        @Override
+                        public Object handleResult(final Directory.Groups.Aliases.Delete request, final Void value) {
+                            return null;
                         }
-                    }
 
-                    // Add new Member object
-                    for (Directory.Members.Insert insert : addMembership) {
-                        execute(insert, new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+                        @Override
+                        public Object handleNotFound(final IOException e) {
+                            // It may be an indirect membership, not able to delete
+                            return null;
+                        }
+                    });
+                }
+            } else {
+                List<Directory.Groups.Aliases.Insert> addAliases = new ArrayList<>();
+                Set<String> keepAliases = CollectionUtil.newCaseInsensitiveSet();
+
+                for (Object alias : aliases) {
+                    if (currentAliases.contains(alias.toString())) {
+                        keepAliases.add((String) alias);
+                    } else {
+                        addAliases.add(
+                                GroupHandler.createGroupAlias(service, uidAfterUpdate.getUidValue(), (String) alias));
+                    }
+                }
+
+                // Add new alias
+                for (Directory.Groups.Aliases.Insert insert : addAliases) {
+                    execute(insert, new RequestResultHandler<Directory.Groups.Aliases.Insert, Alias, Object>() {
+
+                        @Override
+                        public Object handleResult(final Directory.Groups.Aliases.Insert insert, final Alias value) {
+                            return null;
+                        }
+
+                        @Override
+                        public Object handleDuplicate(final IOException e) {
+                            return null;
+                        }
+                    });
+                }
+
+                // Delete existing aliases
+                if (currentAliases.removeAll(keepAliases)) {
+                    for (Object alias : currentAliases) {
+                        execute(GroupHandler.deleteGroupAlias(service, (String) alias, uidAfterUpdate.getUidValue()),
+                                new RequestResultHandler<Directory.Groups.Aliases.Delete, Void, Object>() {
 
                             @Override
-                            public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                            public Object handleResult(final Directory.Groups.Aliases.Delete request, final Void v) {
                                 return null;
                             }
 
                             @Override
-                            public Object handleDuplicate(final IOException e) {
-                                // Do nothing
+                            public Object handleNotFound(final IOException e) {
                                 return null;
                             }
                         });
-                    }
-
-                    // Update existing Member object
-                    for (Directory.Members.Patch request : patchMembership) {
-                        execute(request, new RequestResultHandler<Directory.Members.Patch, Member, Object>() {
-
-                            @Override
-                            public Object handleResult(final Directory.Members.Patch request, final Member value) {
-                                return null;
-                            }
-                        });
-                    }
-
-                    // Delete existing Member object
-                    for (Map<String, String> am : activeMembership) {
-                        if (!am.containsKey("keep")) {
-                            execute(MembersHandler.delete(
-                                    service, uidAfterUpdate.getUidValue(), am.get(GoogleAppsUtil.EMAIL_ATTR)),
-                                    new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
-
-                                @Override
-                                public Object handleResult(final Directory.Members.Delete request, final Void value) {
-                                    return null;
-                                }
-
-                                @Override
-                                public Object handleNotFound(final IOException e) {
-                                    // Do nothing
-                                    return null;
-                                }
-                            });
-                        }
                     }
                 }
             }
+        }
+
+        return uidAfterUpdate;
+    }
+
+    public Uid update(final Set<Attribute> replaceAttributes) {
+        AttributesAccessor accessor = new AttributesAccessor(replaceAttributes);
+
+        Uid uidAfterUpdate = uid;
+        if (ObjectClass.ACCOUNT.equals(objectClass)) {
+            uidAfterUpdate = updateUser(accessor);
+        } else if (ObjectClass.GROUP.equals(objectClass)) {
+            uidAfterUpdate = updateGroup(accessor);
         } else if (GoogleAppsUtil.MEMBER.equals(objectClass)) {
             String role = accessor.findString(GoogleAppsUtil.ROLE_ATTR);
             if (StringUtil.isNotBlank(role)) {
                 String[] ids = uid.getUidValue().split("/");
                 if (ids.length == 2) {
-                    final Directory.Members.Patch patch = MembersHandler.update(
+                    Directory.Members.Patch patch = MembersHandler.update(
                             configuration.getDirectory().members(), ids[0], ids[1], role).
                             setFields(GoogleAppsUtil.EMAIL_ETAG);
                     uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Members.Patch, Member, Uid>() {
@@ -388,7 +542,7 @@ public class GoogleAppsUpdate {
                 }
             }
         } else if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
-            final Directory.Orgunits.Patch patch = OrgunitsHandler.update(
+            Directory.Orgunits.Patch patch = OrgunitsHandler.update(
                     configuration.getDirectory().orgunits(), uid.getUidValue(), accessor);
             if (null != patch) {
                 uidAfterUpdate = execute(patch, new RequestResultHandler<Directory.Orgunits.Patch, OrgUnit, Uid>() {
@@ -401,10 +555,8 @@ public class GoogleAppsUpdate {
                 });
             }
         } else if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
-            final Licensing.LicenseAssignments.Patch patch = LicenseAssignmentsHandler.update(
-                    configuration.getLicensing().licenseAssignments(),
-                    uid.getUidValue(),
-                    accessor);
+            Licensing.LicenseAssignments.Patch patch = LicenseAssignmentsHandler.update(
+                    configuration.getLicensing().licenseAssignments(), uid.getUidValue(), accessor);
             if (null != patch) {
                 uidAfterUpdate = execute(patch,
                         new RequestResultHandler<Licensing.LicenseAssignments.Patch, LicenseAssignment, Uid>() {
@@ -429,177 +581,303 @@ public class GoogleAppsUpdate {
         return uidAfterUpdate;
     }
 
+    private void updateDeltaUser(final Set<AttributeDelta> modifications) {
+        Directory.Users.Update update = UserHandler.updateUser(
+                configuration.getDirectory().users(),
+                uid.getUidValue(),
+                modifications,
+                configuration.getCustomSchemasJSON());
+        if (null != update) {
+            execute(update, new RequestResultHandler<Directory.Users.Update, User, Uid>() {
+
+                @Override
+                public Uid handleResult(final Directory.Users.Update request, final User value) {
+                    LOG.ok("User is Updated:{0}", value.getId());
+                    return uid;
+                }
+            });
+        }
+
+        Set<String> groupsToAdd = new HashSet<>();
+        Set<String> groupsToRemove = new HashSet<>();
+        Optional.ofNullable(AttributeDeltaUtil.find(PredefinedAttributes.GROUPS_NAME, modifications)).
+                ifPresent(groups -> {
+                    if (CollectionUtil.isEmpty(groups.getValuesToReplace())) {
+                        if (!CollectionUtil.isEmpty(groups.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToAdd())) {
+                                groupsToAdd.add(group.toString());
+                            }
+                        }
+
+                        if (!CollectionUtil.isEmpty(groups.getValuesToRemove())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToRemove())) {
+                                groupsToRemove.add(group.toString());
+                            }
+                        }
+                    } else {
+                        for (String groupKey : listGroups(
+                                configuration.getDirectory().groups(),
+                                uid.getUidValue(),
+                                configuration.getDomain())) {
+
+                            groupsToRemove.add(groupKey);
+                        }
+
+                        if (!CollectionUtil.isEmpty(groups.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToReplace())) {
+                                groupsToAdd.add(group.toString());
+                            }
+                        }
+                    }
+                });
+        Directory.Members membersService = configuration.getDirectory().members();
+        // Delete existing Member object
+        for (String groupKey : groupsToRemove) {
+            execute(MembersHandler.delete(membersService, groupKey, uid.getUidValue()),
+                    new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Members.Delete request, final Void value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleNotFound(final IOException e) {
+                    // It may be an indirect membership, not able to delete
+                    return null;
+                }
+            });
+        }
+        // Add new Member object
+        for (String groupKey : groupsToAdd) {
+            execute(MembersHandler.create(membersService, groupKey, uid, null),
+                    new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleDuplicate(final IOException e) {
+                    // Do nothing
+                    return null;
+                }
+            });
+        }
+
+        Directory.Users.Aliases aliasService = configuration.getDirectory().users().aliases();
+        Set<String> aliasesToAdd = new HashSet<>();
+        Set<String> aliasesToRemove = new HashSet<>();
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.ALIASES_ATTR, modifications)).
+                ifPresent(aliases -> {
+                    if (CollectionUtil.isEmpty(aliases.getValuesToReplace())) {
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToAdd())) {
+                            for (Object alias : CollectionUtil.nullAsEmpty(aliases.getValuesToAdd())) {
+                                aliasesToAdd.add(alias.toString());
+                            }
+                        }
+
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToRemove())) {
+                            for (Object alias : CollectionUtil.nullAsEmpty(aliases.getValuesToRemove())) {
+                                aliasesToRemove.add(alias.toString());
+                            }
+                        }
+                    } else {
+                        aliasesToRemove.addAll(UserHandler.listAliases(aliasService, uid.getUidValue()));
+
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(aliases.getValuesToReplace())) {
+                                aliasesToAdd.add(group.toString());
+                            }
+                        }
+                    }
+                });
+        // Delete existing aliases
+        for (String alias : aliasesToRemove) {
+            execute(UserHandler.deleteUserAlias(aliasService, alias, uid.getUidValue()),
+                    new RequestResultHandler<Directory.Users.Aliases.Delete, Void, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Users.Aliases.Delete request, final Void v) {
+                    return null;
+                }
+
+                @Override
+                public Object handleNotFound(final IOException e) {
+                    return null;
+                }
+            });
+        }
+        // Add new aliases
+        for (String alias : aliasesToAdd) {
+            execute(UserHandler.createUserAlias(aliasService, uid.getUidValue(), alias),
+                    new RequestResultHandler<Directory.Users.Aliases.Insert, Alias, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Users.Aliases.Insert insert, final Alias value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleDuplicate(final IOException e) {
+                    return null;
+                }
+            });
+        }
+    }
+
+    private void updateDeltaGroup(final Set<AttributeDelta> modifications) {
+        Directory.Groups.Update update = GroupHandler.update(
+                configuration.getDirectory().groups(), uid.getUidValue(), modifications);
+        if (null != update) {
+            execute(update, new RequestResultHandler<Directory.Groups.Update, Group, Uid>() {
+
+                @Override
+                public Uid handleResult(final Directory.Groups.Update request, final Group value) {
+                    LOG.ok("Group is Updated:{0}", value.getId());
+                    return uid;
+                }
+            });
+        }
+
+        Directory.Members membersService = configuration.getDirectory().members();
+
+        Set<String> membersToAdd = new HashSet<>();
+        Set<String> membersToRemove = new HashSet<>();
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.MEMBERS_ATTR, modifications)).
+                ifPresent(members -> {
+                    if (CollectionUtil.isEmpty(members.getValuesToReplace())) {
+                        if (!CollectionUtil.isEmpty(members.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToAdd())) {
+                                membersToAdd.add(group.toString());
+                            }
+                        }
+
+                        if (!CollectionUtil.isEmpty(members.getValuesToRemove())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToRemove())) {
+                                membersToRemove.add(group.toString());
+                            }
+                        }
+                    } else {
+                        for (Map<String, String> member : listMembers(
+                                membersService,
+                                uid.getUidValue(),
+                                null)) {
+
+                            membersToRemove.add(member.get(GoogleAppsUtil.EMAIL_ATTR));
+                        }
+
+                        if (!CollectionUtil.isEmpty(members.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToReplace())) {
+                                membersToAdd.add(group.toString());
+                            }
+                        }
+                    }
+                });
+        // Remove all membership
+        for (String member : membersToRemove) {
+            execute(MembersHandler.delete(membersService, uid.getUidValue(), member),
+                    new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Members.Delete request, final Void value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleNotFound(final IOException e) {
+                    // Do nothing
+                    return null;
+                }
+            });
+        }
+        // Add new Member object
+        for (String member : membersToAdd) {
+            execute(MembersHandler.create(membersService, uid.getUidValue(), member, null),
+                    new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Members.Insert request, final Member value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleDuplicate(final IOException e) {
+                    // Do nothing
+                    return null;
+                }
+            });
+        }
+
+        Directory.Groups.Aliases aliasService = configuration.getDirectory().groups().aliases();
+        Set<String> aliasesToAdd = new HashSet<>();
+        Set<String> aliasesToRemove = new HashSet<>();
+        Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.ALIASES_ATTR, modifications)).
+                ifPresent(aliases -> {
+                    if (CollectionUtil.isEmpty(aliases.getValuesToReplace())) {
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToAdd())) {
+                            for (Object alias : CollectionUtil.nullAsEmpty(aliases.getValuesToAdd())) {
+                                aliasesToAdd.add(alias.toString());
+                            }
+                        }
+
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToRemove())) {
+                            for (Object alias : CollectionUtil.nullAsEmpty(aliases.getValuesToRemove())) {
+                                aliasesToRemove.add(alias.toString());
+                            }
+                        }
+                    } else {
+                        aliasesToRemove.addAll(GroupHandler.listAliases(aliasService, uid.getUidValue()));
+
+                        if (!CollectionUtil.isEmpty(aliases.getValuesToAdd())) {
+                            for (Object group : CollectionUtil.nullAsEmpty(aliases.getValuesToReplace())) {
+                                aliasesToAdd.add(group.toString());
+                            }
+                        }
+                    }
+                });
+        // Delete existing aliases
+        for (String alias : aliasesToRemove) {
+            execute(GroupHandler.deleteGroupAlias(aliasService, alias, uid.getUidValue()),
+                    new RequestResultHandler<Directory.Groups.Aliases.Delete, Void, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Groups.Aliases.Delete request, final Void v) {
+                    return null;
+                }
+
+                @Override
+                public Object handleNotFound(final IOException e) {
+                    return null;
+                }
+            });
+        }
+        // Add new aliases
+        for (String alias : aliasesToAdd) {
+            execute(GroupHandler.createGroupAlias(aliasService, uid.getUidValue(), alias),
+                    new RequestResultHandler<Directory.Groups.Aliases.Insert, Alias, Object>() {
+
+                @Override
+                public Object handleResult(final Directory.Groups.Aliases.Insert insert, final Alias value) {
+                    return null;
+                }
+
+                @Override
+                public Object handleDuplicate(final IOException e) {
+                    return null;
+                }
+            });
+        }
+    }
+
     public Set<AttributeDelta> updateDelta(final Set<AttributeDelta> modifications) {
         if (ObjectClass.ACCOUNT.equals(objectClass)) {
-            Directory.Users.Update update = UserHandler.updateUser(
-                    configuration.getDirectory().users(),
-                    uid.getUidValue(),
-                    modifications,
-                    configuration.getCustomSchemasJSON());
-            if (null != update) {
-                execute(update, new RequestResultHandler<Directory.Users.Update, User, Uid>() {
-
-                    @Override
-                    public Uid handleResult(final Directory.Users.Update request, final User value) {
-                        LOG.ok("User is Updated:{0}", value.getId());
-                        return uid;
-                    }
-                });
-            }
-
-            Set<String> groupsToAdd = new HashSet<>();
-            Set<String> groupsToRemove = new HashSet<>();
-            Optional.ofNullable(AttributeDeltaUtil.find(PredefinedAttributes.GROUPS_NAME, modifications)).
-                    ifPresent(groups -> {
-                        if (CollectionUtil.isEmpty(groups.getValuesToReplace())) {
-                            if (!CollectionUtil.isEmpty(groups.getValuesToAdd())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToAdd())) {
-                                    groupsToAdd.add(group.toString());
-                                }
-                            }
-
-                            if (!CollectionUtil.isEmpty(groups.getValuesToRemove())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToRemove())) {
-                                    groupsToRemove.add(group.toString());
-                                }
-                            }
-                        } else {
-                            for (String groupKey : listGroups(
-                                    configuration.getDirectory().groups(),
-                                    uid.getUidValue(),
-                                    configuration.getDomain())) {
-
-                                groupsToRemove.add(groupKey);
-                            }
-
-                            if (!CollectionUtil.isEmpty(groups.getValuesToAdd())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(groups.getValuesToReplace())) {
-                                    groupsToAdd.add(group.toString());
-                                }
-                            }
-                        }
-                    });
-
-            final Directory.Members service = configuration.getDirectory().members();
-            // Delete existing Member object
-            for (String groupKey : groupsToRemove) {
-                execute(MembersHandler.delete(service, groupKey, uid.getUidValue()),
-                        new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
-
-                    @Override
-                    public Object handleResult(final Directory.Members.Delete request, final Void value) {
-                        return null;
-                    }
-
-                    @Override
-                    public Object handleNotFound(final IOException e) {
-                        // It may be an indirect membership, not able to delete
-                        return null;
-                    }
-                });
-            }
-            // Add new Member object
-            for (String groupKey : groupsToAdd) {
-                execute(MembersHandler.create(service, groupKey, uid, null),
-                        new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
-
-                    @Override
-                    public Object handleResult(final Directory.Members.Insert request, final Member value) {
-                        return null;
-                    }
-
-                    @Override
-                    public Object handleDuplicate(final IOException e) {
-                        // Do nothing
-                        return null;
-                    }
-                });
-            }
+            updateDeltaUser(modifications);
         } else if (ObjectClass.GROUP.equals(objectClass)) {
-            final Directory.Groups.Update update = GroupHandler.update(
-                    configuration.getDirectory().groups(), uid.getUidValue(), modifications);
-            if (null != update) {
-                execute(update, new RequestResultHandler<Directory.Groups.Update, Group, Uid>() {
-
-                    @Override
-                    public Uid handleResult(final Directory.Groups.Update request, final Group value) {
-                        LOG.ok("Group is Updated:{0}", value.getEmail());
-                        return uid;
-                    }
-                });
-            }
-
-            final Directory.Members service = configuration.getDirectory().members();
-
-            Set<String> membersToAdd = new HashSet<>();
-            Set<String> membersToRemove = new HashSet<>();
-            Optional.ofNullable(AttributeDeltaUtil.find(GoogleAppsUtil.MEMBERS_ATTR, modifications)).
-                    ifPresent(members -> {
-                        if (CollectionUtil.isEmpty(members.getValuesToReplace())) {
-                            if (!CollectionUtil.isEmpty(members.getValuesToAdd())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToAdd())) {
-                                    membersToAdd.add(group.toString());
-                                }
-                            }
-
-                            if (!CollectionUtil.isEmpty(members.getValuesToRemove())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToRemove())) {
-                                    membersToRemove.add(group.toString());
-                                }
-                            }
-                        } else {
-                            for (Map<String, String> member : listMembers(
-                                    service,
-                                    uid.getUidValue(),
-                                    null)) {
-
-                                membersToRemove.add(member.get(GoogleAppsUtil.EMAIL_ATTR));
-                            }
-
-                            if (!CollectionUtil.isEmpty(members.getValuesToAdd())) {
-                                for (Object group : CollectionUtil.nullAsEmpty(members.getValuesToReplace())) {
-                                    membersToAdd.add(group.toString());
-                                }
-                            }
-                        }
-                    });
-
-            // Remove all membership
-            for (String member : membersToRemove) {
-                execute(MembersHandler.delete(service, uid.getUidValue(), member),
-                        new RequestResultHandler<Directory.Members.Delete, Void, Object>() {
-
-                    @Override
-                    public Object handleResult(final Directory.Members.Delete request, final Void value) {
-                        return null;
-                    }
-
-                    @Override
-                    public Object handleNotFound(final IOException e) {
-                        // Do nothing
-                        return null;
-                    }
-                });
-            }
-            // Add new Member object
-            for (String member : membersToAdd) {
-                execute(MembersHandler.create(service, uid.getUidValue(), member, null),
-                        new RequestResultHandler<Directory.Members.Insert, Member, Object>() {
-
-                    @Override
-                    public Object handleResult(final Directory.Members.Insert request, final Member value) {
-                        return null;
-                    }
-
-                    @Override
-                    public Object handleDuplicate(final IOException e) {
-                        // Do nothing
-                        return null;
-                    }
-                });
-            }
+            updateDeltaGroup(modifications);
         } else if (GoogleAppsUtil.ORG_UNIT.equals(objectClass)) {
-            final Directory.Orgunits.Update update = OrgunitsHandler.update(
+            Directory.Orgunits.Update update = OrgunitsHandler.update(
                     configuration.getDirectory().orgunits(), uid.getUidValue(), modifications);
             if (null != update) {
                 execute(update, new RequestResultHandler<Directory.Orgunits.Update, OrgUnit, Uid>() {
@@ -612,8 +890,6 @@ public class GoogleAppsUpdate {
                 });
             }
         } else {
-            LOG.warn("Update delta of type {0} is not supported", configuration.getConnectorMessages()
-                    .format(objectClass.getDisplayNameKey(), objectClass.getObjectClassValue()));
             throw new UnsupportedOperationException("Update delta of type"
                     + objectClass.getObjectClassValue() + " is not supported");
         }

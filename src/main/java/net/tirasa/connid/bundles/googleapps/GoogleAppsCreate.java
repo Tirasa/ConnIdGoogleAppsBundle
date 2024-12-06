@@ -236,7 +236,7 @@ public class GoogleAppsCreate {
                 }
             }
         }
-        
+
         List<Object> members = accessor.findList(GoogleAppsUtil.MEMBERS_ATTR);
         if (null != members) {
             final Directory.Members membersService = configuration.getDirectory().members();
@@ -309,20 +309,6 @@ public class GoogleAppsCreate {
         }
 
         if (GoogleAppsUtil.LICENSE_ASSIGNMENT.equals(objectClass)) {
-            // @formatter:off
-            /* AlreadyExistsException
-             * {
-             * "code" : 400,
-             * "errors" : [ {
-             * "domain" : "global",
-             * "message" : "Invalid Ou Id",
-             * "reason" : "invalid"
-             * } ],
-             * "message" : "Invalid Ou Id"
-             * }
-             */
-            // @formatter:on
-
             return GoogleApiExecutor.execute(
                     LicenseAssignmentsHandler.create(configuration.getLicensing().licenseAssignments(), accessor),
                     new RequestResultHandler<Licensing.LicenseAssignments.Insert, LicenseAssignment, Uid>() {

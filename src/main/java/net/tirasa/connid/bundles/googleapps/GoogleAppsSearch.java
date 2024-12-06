@@ -319,8 +319,10 @@ public class GoogleAppsSearch {
                                 if (null != value.getUsers()) {
                                     for (User user : value.getUsers()) {
                                         handler.handle(UserHandler.fromUser(
-                                                configuration, user, attributesToGet, configuration.getDirectory().
-                                                        groups()));
+                                                configuration,
+                                                user,
+                                                attributesToGet,
+                                                configuration.getDirectory().groups()));
                                     }
                                 }
                                 return value.getNextPageToken();

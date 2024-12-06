@@ -23,9 +23,12 @@
  */
 package net.tirasa.connid.bundles.googleapps;
 
+import static net.tirasa.connid.bundles.googleapps.GoogleApiExecutor.execute;
+
 import com.google.api.client.util.GenericData;
 import com.google.api.services.directory.Directory;
 import com.google.api.services.directory.model.Alias;
+import com.google.api.services.directory.model.Aliases;
 import com.google.api.services.directory.model.User;
 import com.google.api.services.directory.model.UserAddress;
 import com.google.api.services.directory.model.UserExternalId;
@@ -969,6 +972,33 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             return service.update(userKey, content).setFields(GoogleAppsUtil.ID_ATTR);
         } catch (IOException e) {
             LOG.warn(e, "Failed to initialize Aliases#Insert");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
+    public static Set<String> listAliases(final Directory.Users.Aliases service, final String userKey) {
+        try {
+            return execute(
+                    service.list(userKey),
+                    new RequestResultHandler<Directory.Users.Aliases.List, Aliases, Set<String>>() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public Set<String> handleResult(final Directory.Users.Aliases.List request, final Aliases value) {
+                    return Optional.ofNullable(value.getAliases()).map(aliases -> aliases.stream().
+                            map(map -> ((Map<String, String>) map).get(GoogleAppsUtil.ALIAS_ATTR)).
+                            filter(Objects::nonNull).collect(Collectors.toSet())).
+                            orElse(Set.of());
+                }
+
+                @Override
+                public Set<String> handleError(final Throwable e) {
+                    LOG.error(e, "While getting aliases for {0}", userKey);
+                    return Set.of();
+                }
+            });
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Aliases#list");
             throw ConnectorException.wrap(e);
         }
     }

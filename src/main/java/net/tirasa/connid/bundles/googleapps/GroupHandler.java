@@ -27,16 +27,20 @@ import static net.tirasa.connid.bundles.googleapps.GoogleApiExecutor.execute;
 
 import com.google.api.services.directory.Directory;
 import com.google.api.services.directory.model.Alias;
+import com.google.api.services.directory.model.Aliases;
 import com.google.api.services.directory.model.Group;
 import com.google.api.services.directory.model.Groups;
 import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;
@@ -335,6 +339,33 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         }
     }
 
+    public static Set<String> listAliases(final Directory.Groups.Aliases service, final String groupKey) {
+        try {
+            return execute(
+                    service.list(groupKey),
+                    new RequestResultHandler<Directory.Groups.Aliases.List, Aliases, Set<String>>() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public Set<String> handleResult(final Directory.Groups.Aliases.List request, final Aliases value) {
+                    return Optional.ofNullable(value.getAliases()).map(aliases -> aliases.stream().
+                            map(map -> ((Map<String, String>) map).get(GoogleAppsUtil.ALIAS_ATTR)).
+                            filter(Objects::nonNull).collect(Collectors.toSet())).
+                            orElse(Set.of());
+                }
+
+                @Override
+                public Set<String> handleError(final Throwable e) {
+                    LOG.error(e, "While getting aliases for {0}", groupKey);
+                    return Set.of();
+                }
+            });
+        } catch (IOException e) {
+            LOG.warn(e, "Failed to initialize Aliases#list");
+            throw ConnectorException.wrap(e);
+        }
+    }
+
     public static Directory.Groups.Aliases.Insert createGroupAlias(
             final Directory.Groups.Aliases service, final String groupKey, final String alias) {
 
@@ -429,14 +460,14 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
     }
 
     public static Set<String> listGroups(final Directory.Groups service, final String userKey, final String domain) {
-        final Set<String> result = CollectionUtil.newCaseInsensitiveSet();
+        Set<String> result = CollectionUtil.newCaseInsensitiveSet();
         try {
-            Directory.Groups.List request = service.list();
-            request.setUserKey(userKey);
-            request.setFields("groups/email");
-            // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey combination 
-            // allowed. request.setCustomer(MY_CUSTOMER_ID);
-            request.setDomain(domain);
+            Directory.Groups.List request = service.list().
+                    setUserKey(userKey).
+                    setFields("groups/email").
+                    // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey
+                    // combination allowed. request.setCustomer(MY_CUSTOMER_ID);
+                    setDomain(domain);
 
             String nextPageToken;
             do {
@@ -445,9 +476,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
                     @Override
                     public String handleResult(final Directory.Groups.List request, final Groups value) {
                         if (null != value.getGroups()) {
-                            for (Group group : value.getGroups()) {
-                                result.add(group.getEmail());
-                            }
+                            value.getGroups().stream().map(Group::getId).forEach(result::add);
                         }
                         return value.getNextPageToken();
                     }
