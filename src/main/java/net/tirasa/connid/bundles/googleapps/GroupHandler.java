@@ -34,6 +34,7 @@ import com.google.common.base.CharMatcher;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -351,13 +352,13 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
                     return Optional.ofNullable(value.getAliases()).map(aliases -> aliases.stream().
                             map(map -> ((Map<String, String>) map).get(GoogleAppsUtil.ALIAS_ATTR)).
                             filter(Objects::nonNull).collect(Collectors.toSet())).
-                            orElse(Set.of());
+                            orElse(Collections.emptySet());
                 }
 
                 @Override
                 public Set<String> handleError(final Throwable e) {
                     LOG.error(e, "While getting aliases for {0}", groupKey);
-                    return Set.of();
+                    return Collections.emptySet();
                 }
             });
         } catch (IOException e) {

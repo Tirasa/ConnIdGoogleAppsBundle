@@ -44,6 +44,7 @@ import com.google.common.escape.Escapers;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -988,13 +989,13 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
                     return Optional.ofNullable(value.getAliases()).map(aliases -> aliases.stream().
                             map(map -> ((Map<String, String>) map).get(GoogleAppsUtil.ALIAS_ATTR)).
                             filter(Objects::nonNull).collect(Collectors.toSet())).
-                            orElse(Set.of());
+                            orElse(Collections.emptySet());
                 }
 
                 @Override
                 public Set<String> handleError(final Throwable e) {
                     LOG.error(e, "While getting aliases for {0}", userKey);
-                    return Set.of();
+                    return Collections.emptySet();
                 }
             });
         } catch (IOException e) {
