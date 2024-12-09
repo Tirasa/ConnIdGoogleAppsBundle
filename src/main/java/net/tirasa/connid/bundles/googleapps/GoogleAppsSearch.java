@@ -345,8 +345,9 @@ public class GoogleAppsSearch {
                 try {
                     Directory.Users.Get request =
                             configuration.getDirectory().users().get((String) key.getValue().get(0));
-                    request.setFields(getFields(options, GoogleAppsUtil.ID_ATTR,
-                            GoogleAppsUtil.ETAG_ATTR, GoogleAppsUtil.PRIMARY_EMAIL_ATTR));
+                    request.setFields(getFields(options,
+                            GoogleAppsUtil.ID_ATTR, GoogleAppsUtil.ETAG_ATTR,
+                            GoogleAppsUtil.PRIMARY_EMAIL_ATTR, GoogleAppsUtil.SUSPENDED_ATTR));
                     request.setProjection(configuration.getProjection());
 
                     GoogleApiExecutor.execute(request,
@@ -398,8 +399,9 @@ public class GoogleAppsSearch {
                     request.setPageToken(options.getPagedResultsCookie());
 
                     // Implementation to support the 'OP_ATTRIBUTES_TO_GET'
-                    String fields = getFields(options, GoogleAppsUtil.ID_ATTR,
-                            GoogleAppsUtil.ETAG_ATTR, GoogleAppsUtil.EMAIL_ATTR);
+                    String fields = getFields(options,
+                            GoogleAppsUtil.ID_ATTR, GoogleAppsUtil.ETAG_ATTR,
+                            GoogleAppsUtil.EMAIL_ATTR, GoogleAppsUtil.SUSPENDED_ATTR);
                     if (null != fields) {
                         request.setFields("nextPageToken,groups(" + fields + ")");
                     }

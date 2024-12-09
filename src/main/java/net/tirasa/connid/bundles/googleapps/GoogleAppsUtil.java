@@ -112,6 +112,8 @@ public final class GoogleAppsUtil {
 
     public static final String AGREED_TO_TERMS_ATTR = "agreedToTerms";
 
+    public static final String SUSPENDED_ATTR = "suspended";
+
     public static final String SUSPENSION_REASON_ATTR = "suspensionReason";
 
     public static final String ALIASES_ATTR = "aliases";

@@ -552,10 +552,8 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
         user.setExternalIds(buildObjs(Optional.ofNullable(attributes.findList(
                 GoogleAppsUtil.EXTERNAL_IDS_ATTR)).orElse(null), UserExternalId.class));
 
-        Boolean enable = attributes.findBoolean(OperationalAttributes.ENABLE_NAME);
-        if (null != enable) {
-            user.setSuspended(!enable);
-        }
+        Optional.ofNullable(attributes.findBoolean(OperationalAttributes.ENABLE_NAME)).
+                ifPresent(enable -> user.setSuspended(!enable));
         user.setChangePasswordAtNextLogin(
                 attributes.findBoolean(GoogleAppsUtil.CHANGE_PASSWORD_AT_NEXT_LOGIN_ATTR));
         user.setIpWhitelisted(attributes.findBoolean(GoogleAppsUtil.IP_WHITELISTED_ATTR));
@@ -941,9 +939,8 @@ public class UserHandler implements FilterVisitor<StringBuilder, Directory.Users
             builder.setUid(user.getId());
         }
         builder.setName(user.getPrimaryEmail());
-        if (user.getSuspended() != null) {
-            builder.addAttribute(AttributeBuilder.build(OperationalAttributes.ENABLE_NAME, !user.getSuspended()));
-        }
+        Optional.ofNullable(user.getSuspended()).
+                ifPresent(suspended -> builder.addAttribute(AttributeBuilder.buildEnabled(!suspended)));
 
         if ((null == attributesToGet || attributesToGet.contains(GoogleAppsUtil.ID_ATTR))) {
             builder.addAttribute(AttributeBuilder.build(GoogleAppsUtil.ID_ATTR, user.getId()));

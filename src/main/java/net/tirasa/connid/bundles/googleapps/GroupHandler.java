@@ -445,7 +445,7 @@ public class GroupHandler implements FilterVisitor<StringBuilder, Directory.Grou
         try {
             Directory.Groups.List request = service.list().
                     setUserKey(userKey).
-                    setFields("groups/email").
+                    setFields("groups/id").
                     // 400 Bad Request if the Customer(my_customer or exact value) is set, only domain-userKey
                     // combination allowed. request.setCustomer(MY_CUSTOMER_ID);
                     setDomain(domain);

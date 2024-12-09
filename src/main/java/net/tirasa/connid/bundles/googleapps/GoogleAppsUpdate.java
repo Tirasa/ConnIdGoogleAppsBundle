@@ -249,7 +249,6 @@ public class GoogleAppsUpdate {
             }
         }
 
-        // GOOGLEAPPS-9
         // license management: if remove license param is true and __ENABLE__ is false perform delete license
         // license read must be performed with the user primaryEmail, userId is not allowed
         if (configuration.getRemoveLicenseOnDisable()
