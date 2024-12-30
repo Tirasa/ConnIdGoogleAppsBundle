@@ -29,11 +29,12 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import java.awt.Desktop;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -101,8 +102,8 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
         sa.run(args);
     }
 
-    private void getConfigurationMap(final File clientJson) throws IOException, URISyntaxException {
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(clientJson));
+    private void getConfigurationMap(final Path clientJson) throws IOException, URISyntaxException {
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, Files.newBufferedReader(clientJson));
         CONFIG_MAP.put("clientId", clientSecrets.getDetails().getClientId());
         CONFIG_MAP.put("clientSecret", clientSecrets.getDetails().getClientSecret());
 
@@ -142,12 +143,12 @@ public class CredentialsGeneratorApplication implements CommandLineRunner {
     @Override
     public void run(final String... args) throws IOException, URISyntaxException {
         if (args.length == 1) {
-            File clientJson = new File(args[0]);
-            if (clientJson.isDirectory()) {
-                clientJson = new File(clientJson, CLIENTSECRETS_LOCATION);
+            Path clientJson = Paths.get(args[0]);
+            if (Files.isDirectory(clientJson)) {
+                clientJson = clientJson.resolve(CLIENTSECRETS_LOCATION);
             }
 
-            if (clientJson.exists() && clientJson.isFile()) {
+            if (Files.isReadable(clientJson) && Files.isRegularFile(clientJson)) {
                 getConfigurationMap(clientJson);
             } else {
                 LOG.error("Invalid client secret path: {}", clientJson);
