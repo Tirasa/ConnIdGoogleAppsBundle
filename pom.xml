@@ -83,7 +83,7 @@
   </mailingLists>
 
   <properties>
-    <connid.version>1.5.2.0</connid.version>
+    <connid.version>1.6.0.0</connid.version>
 
     <spring-boot.version>2.7.18</spring-boot.version>
 
