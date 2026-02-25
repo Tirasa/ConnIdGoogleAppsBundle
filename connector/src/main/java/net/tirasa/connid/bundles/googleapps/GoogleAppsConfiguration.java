@@ -238,21 +238,22 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                 Optional<String> socksProxyPort = Optional.ofNullable(System.getProperty("socksProxyPort"));
                 Proxy.Type proxyType =
                         (httpProxyHost.isPresent() && httpProxyPort.isPresent())
-                                || (httpsProxyHost.isPresent() && httpsProxyPort.isPresent())
-                                ? Proxy.Type.HTTP
-                                : socksProxyHost.isPresent() && socksProxyPort.isPresent()
-                                        ? Proxy.Type.SOCKS
-                                        : Proxy.Type.DIRECT;
-                
+                        || (httpsProxyHost.isPresent() && httpsProxyPort.isPresent())
+                        ? Proxy.Type.HTTP
+                        : socksProxyHost.isPresent() && socksProxyPort.isPresent()
+                        ? Proxy.Type.SOCKS
+                        : Proxy.Type.DIRECT;
+
                 if (Proxy.Type.HTTP == proxyType) {
                     HttpClientBuilder clientBuilder = HttpClientBuilder.create();
                     clientBuilder.useSystemProperties();
                     clientBuilder.setProxy(httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
-                            ? new HttpHost(httpsProxyHost.get(),
-                            Integer.parseInt(httpsProxyPort.get()))
-                            : new HttpHost(httpProxyHost.get(),
-                                    Integer.parseInt(httpProxyPort.get())));
+                            ? new HttpHost(httpsProxyHost.orElseThrow(),
+                                    Integer.parseInt(httpsProxyPort.orElseThrow()))
+                            : new HttpHost(httpProxyHost.orElseThrow(),
+                                    Integer.parseInt(httpProxyPort.orElseThrow())));
                     credentialsBuilder.setHttpTransportFactory(new HttpTransportFactory() {
+
                         @Override
                         public HttpTransport create() {
                             return new ApacheHttpTransport(clientBuilder.build());
@@ -277,14 +278,14 @@ public class GoogleAppsConfiguration extends AbstractConfiguration implements St
                 HttpTransport httpTransport = Proxy.Type.DIRECT == proxyType
                         ? new NetHttpTransport()
                         : new NetHttpTransport.Builder().setProxy(new Proxy(proxyType,
-                                        Proxy.Type.SOCKS == proxyType
-                                                ? new InetSocketAddress(socksProxyHost.get(),
-                                                Integer.parseInt(socksProxyHost.get()))
-                                                : httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
-                                                        ? new InetSocketAddress(httpsProxyHost.get(),
-                                                        Integer.parseInt(httpsProxyPort.get()))
-                                                        : new InetSocketAddress(httpProxyHost.get(),
-                                                                Integer.parseInt(httpProxyPort.get()))))
+                                Proxy.Type.SOCKS == proxyType
+                                        ? new InetSocketAddress(socksProxyHost.orElseThrow(),
+                                                Integer.parseInt(socksProxyHost.orElseThrow()))
+                                        : httpsProxyHost.isPresent() && httpsProxyPort.isPresent()
+                                        ? new InetSocketAddress(httpsProxyHost.orElseThrow(),
+                                                Integer.parseInt(httpsProxyPort.orElseThrow()))
+                                        : new InetSocketAddress(httpProxyHost.orElseThrow(),
+                                                Integer.parseInt(httpProxyPort.orElseThrow()))))
                                 .build();
 
                 HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(googleCredentials);
