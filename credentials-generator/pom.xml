@@ -33,7 +33,7 @@
     <version>1.4.7-SNAPSHOT</version>
   </parent>
     
-  <groupId>net.tirasa.connid.bundles.okta</groupId>
+  <groupId>net.tirasa.connid.bundles.googleapps</groupId>
   <artifactId>credentials-generator</artifactId>
       
   <name>Bundles: GoogleApps: Credentials Generator</name>
